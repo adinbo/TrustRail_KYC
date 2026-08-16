@@ -48,11 +48,10 @@ Fill in `.env`:
 ## Running things
 
 ```powershell
-npm run typecheck   # tsc --noEmit
-npm test             # vitest — NIA + orchestrator tests always run;
-                      # the Smile/QoreID/OpenSanctions tests run for real
-                      # only if that vendor's credentials are set
-npm run example       # a runnable end-to-end script (needs real vendor creds)
+npm run typecheck    # tsc --noEmit
+npm test             # vitest — runs unit tests, adapters, masking, validation, & live tests if creds set
+npm run diagnostics  # diagnostic runner probing active vendor and sanctions configuration
+npm run example      # a runnable end-to-end script (needs real vendor creds)
 ```
 
 ## Where things stand

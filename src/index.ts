@@ -24,6 +24,9 @@ export type { SanctionsScreeningClient } from "./sanctions/client.js";
 export { OpenSanctionsClient } from "./sanctions/opensanctions.js";
 export type { OpenSanctionsConfig } from "./sanctions/opensanctions.js";
 export { IdentityOrchestrator } from "./orchestrator.js";
+export * from "./validation.js";
+export * from "./utils/masking.js";
+export * from "./adapter/cediramp.js";
 
 /** Builds an orchestrator from environment variables — see .env.example.
  *  KYC_VENDOR picks which identity vendor fills the IdVerificationClient

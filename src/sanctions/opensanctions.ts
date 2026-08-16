@@ -42,6 +42,8 @@ export interface OpenSanctionsConfig {
   /** ISO 3166 alpha-2 country hint to improve match precision. Defaults to
    *  "GH" — TrustRail-KYC is Ghana-focused this pass. */
   country?: string;
+  /** Request timeout in milliseconds. Defaults to 15,000 ms. */
+  timeoutMs?: number;
 }
 
 interface OpenSanctionsResult {
@@ -57,12 +59,14 @@ export class OpenSanctionsClient implements SanctionsScreeningClient {
   private readonly baseUrl: string;
   private readonly dataset: string;
   private readonly country: string;
+  private readonly timeoutMs: number;
 
   constructor(config: OpenSanctionsConfig) {
     this.apiKey = config.apiKey;
     this.baseUrl = config.baseUrl || "https://api.opensanctions.org";
     this.dataset = config.dataset || "default";
     this.country = config.country ?? "GH";
+    this.timeoutMs = config.timeoutMs ?? 15_000;
   }
 
   async screen(input: IdentityInput): Promise<IdentityCheckResult> {
@@ -85,6 +89,7 @@ export class OpenSanctionsClient implements SanctionsScreeningClient {
             },
           },
         }),
+        signal: AbortSignal.timeout(this.timeoutMs),
       });
 
       if (!res.ok) {

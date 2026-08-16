@@ -52,13 +52,16 @@ export class QoreIDClient implements IdVerificationClient {
   private readonly baseUrl: string;
   private token: QoreIDToken | undefined;
 
-  constructor(config: QoreIDConfig) {
+  private readonly timeoutMs: number;
+
+  constructor(config: QoreIDConfig & { timeoutMs?: number }) {
     this.clientId = config.clientId;
     this.secret = config.secret;
     // `||`, not `??`: an empty string from an unset-but-present env var
     // (QOREID_BASE_URL= with nothing after the `=`) must fall back to the
     // default too, not be treated as a deliberate empty base URL.
     this.baseUrl = config.baseUrl || "https://api.qoreid.com";
+    this.timeoutMs = config.timeoutMs ?? 15_000;
   }
 
   private async getToken(): Promise<string> {
@@ -69,6 +72,7 @@ export class QoreIDClient implements IdVerificationClient {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ clientId: this.clientId, secret: this.secret }),
+      signal: AbortSignal.timeout(this.timeoutMs),
     });
     if (!res.ok) {
       // Confirmed error shape from QoreID's own OpenAPI spec:
@@ -108,6 +112,7 @@ export class QoreIDClient implements IdVerificationClient {
             phone: input.phoneNumber,
             email: input.email,
           }),
+          signal: AbortSignal.timeout(this.timeoutMs),
         },
       );
       const result = (await res.json().catch(() => undefined)) as

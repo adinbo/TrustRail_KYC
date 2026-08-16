@@ -23,7 +23,8 @@
     "build": "tsc -p tsconfig.build.json",
     "prepare": "npm run build",
     "prepublishOnly": "npm run build",
-    "example": "tsx examples/verify-example.ts"
+    "example": "tsx examples/verify-example.ts",
+    "diagnostics": "tsx src/cli/diagnostics.ts"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
