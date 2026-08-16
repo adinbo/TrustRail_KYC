@@ -21,6 +21,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.build.json",
+    "prepare": "npm run build",
     "prepublishOnly": "npm run build",
     "example": "tsx examples/verify-example.ts"
   },
