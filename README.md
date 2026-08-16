@@ -16,8 +16,10 @@ verified vs. still open.
     actually get an account with.
 - **Sanctions/PEP screening** — real, against OpenSanctions' matching API
   (sanctions, PEP, and other watchlists), behind `SANCTIONS_MODE`:
-  - `mock` (default) — always passes, exercises the plumbing only.
-  - `opensanctions` — real screening; a watchlist hit fails the check.
+- **Validation & Normalization** — pre-flight format validation for Ghana Cards (`GHA-XXXXXXXXX-X`), regulatory age verification ($\ge 18$), and phone number normalization.
+- **PII Masking** — redaction helpers for Ghana Cards (`GHA-***-X`), phone numbers, and emails for safe audit logging.
+- **Standalone Web Console & API** — built-in HTTP server and interactive UI for standalone manual/curl testing (`npm run serve`).
+- **CediRamp Adapter** — drop-in integration bridge (`CediRampKycAdapter`) for user onboarding pipelines (`POST /v1/users`).
 
 ## Setup
 
@@ -27,8 +29,8 @@ copy .env.example .env
 ```
 
 Fill in `.env`:
-- `KYC_VENDOR` — `smile` or `qoreid`. Only that vendor's credentials below
-  need to be set.
+- `KYC_VENDOR` — `smile`, `qoreid`, or `mock`. Only that vendor's credentials below
+  need to be set (`mock` requires no credentials at all).
 - **Smile ID**: `SMILE_PARTNER_ID` / `SMILE_API_KEY` — free sandbox signup
   at [usesmileid.com](https://usesmileid.com) (business email required;
   gmail.com is rejected).
@@ -45,14 +47,72 @@ Fill in `.env`:
   rather than failing.
 - Leave `NIA_MODE=mock` — that's the only supported mode this pass.
 
-## Running things
+## Running & Testing
 
 ```powershell
-npm run typecheck    # tsc --noEmit
-npm test             # vitest — runs unit tests, adapters, masking, validation, & live tests if creds set
-npm run diagnostics  # diagnostic runner probing active vendor and sanctions configuration
-npm run example      # a runnable end-to-end script (needs real vendor creds)
+# 1. Start the standalone web testing console & REST API (http://localhost:3333)
+npm run serve
+
+# 2. Run diagnostic probe against active vendor credentials & endpoints
+npm run diagnostics
+
+# 3. Run full automated test suite (validation, masking, adapter, mock & live tests)
+npm test
+
+# 4. Typecheck codebase
+npm run typecheck
+
+# 5. Run single end-to-end verification script
+npm run example
 ```
+
+## Validation & Formatting Helpers
+
+Importable directly from `trustrail-kyc`:
+
+```typescript
+import {
+  isValidGhanaCard,      // Validates GHA-XXXXXXXXX-X format
+  normalizeGhanaCard,    // Trims and uppercases ID numbers
+  validateDateOfBirth,   // Validates YYYY-MM-DD and minimum age (e.g. >= 18)
+  normalizePhoneNumber,  // Strips formatting delimiters
+  GHANA_CARD_REGEX,      // /^GHA-\d{9}-\d$/i
+} from "trustrail-kyc";
+```
+
+### Validation Rules:
+- **Ghana Card**: Must match `GHA-XXXXXXXXX-X` (where `X` are digits).
+- **Date of Birth**: Strict ISO 8601 `YYYY-MM-DD`; rejects minors under 18 years old.
+- **Phone Number**: Strips spaces, dashes, and parentheses into standard format.
+
+## PII Masking Utilities
+
+Mask sensitive identity fields for safe audit logs and ops reporting:
+
+```typescript
+import { maskGhanaCard, maskEmail, maskPhoneNumber, maskIdentityInput } from "trustrail-kyc";
+
+maskGhanaCard("GHA-712345678-1"); // "GHA-***-1"
+maskEmail("amina.clearwater@example.com"); // "a***r@example.com"
+maskPhoneNumber("+233241234567"); // "+23****567"
+```
+
+## Standalone Web Console & API (`npm run serve`)
+
+You can run and test KYC entirely on its own without a partner:
+
+- **Interactive UI**: Navigate to `http://localhost:3333` to test identity verification directly from your browser.
+- **REST API Endpoint**:
+  ```bash
+  curl -X POST http://localhost:3333/api/verify \
+    -H "Content-Type: application/json" \
+    -d '{
+      "fullName": "Amina Fatou Clearwater",
+      "idNumber": "GHA-712345678-1",
+      "dateOfBirth": "1992-04-12",
+      "email": "amina.clearwater@example.com"
+    }'
+  ```
 
 ## Where things stand
 
@@ -67,5 +127,4 @@ Smile ID's signup is still blocked (rejects gmail.com), so it remains
 untested against a live account. **Sanctions/PEP screening is real too now**
 (OpenSanctions), behind `SANCTIONS_MODE` the same way identity vendors sit
 behind `KYC_VENDOR` — see PLAN.md for what's verified. Integration into
-CediRamp's `POST /v1/users` route hasn't started — that's the next step
-now that this module's identity and sanctions plumbing are both solid.
+CediRamp's `POST /v1/users` route is ready via `CediRampKycAdapter`.
