@@ -24,9 +24,26 @@ describe("CediRampKycAdapter", () => {
     });
 
     expect(res.passed).toBe(true);
+    expect(res.assignedTier).toBe(1);
     expect(res.details.validationPassed).toBe(true);
     expect(res.details.verificationResult?.verified).toBe(true);
     expect(res.details.maskedAudit.idNumber).toBe("GHA-***-1");
+  });
+
+  it("assigns Tier 2 when biometric selfie and digital address are supplied", async () => {
+    const res = await adapter.evaluateUser({
+      userId: "usr-001-t2",
+      fullName: "Amina Fatou Clearwater",
+      idNumber: "GHA-712345678-1",
+      dateOfBirth: "1992-04-12",
+      phoneNumber: "+233241234567",
+      digitalAddress: "GA-183-9214",
+      selfieImage: "data:image/png;base64,sample",
+      expiryDate: "2030-01-01",
+    });
+
+    expect(res.passed).toBe(true);
+    expect(res.assignedTier).toBe(2);
   });
 
   it("fails early on invalid Ghana card format before hitting orchestrator", async () => {

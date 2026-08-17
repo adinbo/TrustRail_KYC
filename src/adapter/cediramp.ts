@@ -20,10 +20,14 @@ export interface CediRampUserKycParams {
   digitalAddress?: string;
   selfieImage?: string;
   idCardFrontImage?: string;
+  idCardBackImage?: string;
+  /** Desired KYC level (1 = Registry only, 2 = Biometrics + Address, 3 = Institutional OCR). Defaults to 1. */
+  targetTier?: 1 | 2 | 3;
 }
 
 export interface CediRampKycDecision {
   passed: boolean;
+  assignedTier?: 1 | 2 | 3;
   flaggedForReview?: boolean;
   reason?: string;
   details: {
@@ -202,8 +206,20 @@ export class CediRampKycAdapter {
       ? diagnostics.join(" | ")
       : undefined;
 
+    let assignedTier: 1 | 2 | 3 | undefined;
+    if (result.verified) {
+      if (params.idCardFrontImage && params.idCardBackImage && params.selfieImage && params.digitalAddress) {
+        assignedTier = 3;
+      } else if (params.selfieImage && params.digitalAddress) {
+        assignedTier = 2;
+      } else {
+        assignedTier = 1;
+      }
+    }
+
     return {
       passed: result.verified,
+      assignedTier,
       flaggedForReview: result.flaggedForReview,
       reason,
       details: {
