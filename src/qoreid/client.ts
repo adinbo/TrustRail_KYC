@@ -109,7 +109,7 @@ export class QoreIDClient implements IdVerificationClient {
             firstname: input.firstName,
             lastname: input.lastName,
             dob: input.dateOfBirth,
-            phone: input.phoneNumber,
+            phoneNumber: input.phoneNumber,
             email: input.email,
             expiry_date: input.expiryDate,
             selfie_image: input.selfieImage,
