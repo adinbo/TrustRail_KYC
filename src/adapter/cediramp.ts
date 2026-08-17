@@ -53,10 +53,16 @@ export function formatFailureDiagnostics(result: IdentityVerificationResult): st
       }
 
       case "qoreid": {
-        const detail = check.detail as { overallStatus?: string; matchStatus?: string; error?: string; httpStatus?: number };
+        const detail = check.detail as {
+          overallStatus?: string;
+          matchStatus?: string;
+          error?: string;
+          httpStatus?: number;
+          body?: { message?: string; error?: string };
+        };
         const raw = check.raw as { summary?: { ghana_id_check?: { fieldMatches?: Record<string, boolean> } } };
         const fields = raw?.summary?.ghana_id_check?.fieldMatches;
-        let msg = detail.error || `Status: ${detail.overallStatus || "mismatch"} (${detail.matchStatus || ""})`;
+        let msg = detail.error || detail.body?.message || `Status: ${detail.overallStatus || "mismatch"} (${detail.matchStatus || ""})`;
         if (fields) {
           const failedFields = Object.entries(fields).filter(([_, matched]) => !matched).map(([f]) => f);
           if (failedFields.length > 0) {

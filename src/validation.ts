@@ -68,12 +68,22 @@ export function validateDateOfBirth(
 
 /**
  * Normalizes phone numbers into standard international or local formats.
+ * Ghana local format: 0244123456 (10 digits)
  */
 export function normalizePhoneNumber(phone?: string): string | undefined {
   if (!phone) return undefined;
   // Strip whitespace, hyphens, and parenthesis
-  const cleaned = phone.replace(/[\s\-()]/g, "");
-  // If local Ghana format 0244xxxxxx, optionally convert or retain standard
+  let cleaned = phone.replace(/[\s\-()]/g, "");
+
+  // If +233XXXXXXXXX -> 0XXXXXXXXX (standard 10-digit Ghana telecom format)
+  if (cleaned.startsWith("+233")) {
+    cleaned = `0${cleaned.slice(4)}`;
+  } else if (cleaned.startsWith("233") && cleaned.length === 12) {
+    cleaned = `0${cleaned.slice(3)}`;
+  } else if (cleaned.startsWith("+")) {
+    cleaned = cleaned.slice(1);
+  }
+
   return cleaned;
 }
 
