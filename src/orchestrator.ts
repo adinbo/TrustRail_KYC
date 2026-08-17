@@ -1,32 +1,66 @@
 import type { NiaClient } from "./nia/client.js";
 import type { SanctionsScreeningClient } from "./sanctions/client.js";
-import type { IdentityInput, IdentityVerificationResult, IdVerificationClient } from "./types.js";
+import type { AddressVerificationClient } from "./address/ghanapost.js";
+import type {
+  IdentityCheckResult,
+  IdentityInput,
+  IdentityVerificationResult,
+  IdVerificationClient,
+} from "./types.js";
+import { validateDocumentExpiry } from "./validation.js";
 
 /**
- * Runs the NIA registry check and a biometric/registry identity vendor
- * check in parallel (both required to pass), then sanctions screening. All
- * three checks always run and their results are all returned — even once
- * one fails — so a partner/ops reviewer sees the whole picture, not just
- * the first failure.
- *
- * The vendor slot takes any IdVerificationClient — Smile ID and QoreID
- * both satisfy it today (see src/smile/client.ts and src/qoreid/client.ts);
- * which one gets built is a config decision made in index.ts, not here.
+ * Orchestrates multi-layered identity verification:
+ * 1. Document expiry validation
+ * 2. Authoritative registry check (NIA)
+ * 3. Biometric / vendor ID verification (Smile ID / QoreID)
+ * 4. Sanctions & PEP screening (OpenSanctions)
+ * 5. Optional Proof of Address check (GhanaPost GPS)
  */
 export class IdentityOrchestrator {
   constructor(
     private readonly nia: NiaClient,
     private readonly idVerification: IdVerificationClient,
     private readonly sanctions: SanctionsScreeningClient,
+    private readonly addressVerifier?: AddressVerificationClient,
   ) {}
 
   async verify(input: IdentityInput): Promise<IdentityVerificationResult> {
-    const [niaResult, vendorResult, sanctionsResult] = await Promise.all([
+    const checks: IdentityCheckResult[] = [];
+
+    // 1. Expiry Check (if expiryDate provided)
+    if (input.expiryDate) {
+      const expiry = validateDocumentExpiry(input.expiryDate);
+      checks.push({
+        source: "expiry",
+        pass: expiry.valid,
+        detail: expiry.valid
+          ? { note: "Document is within validity period", expiryDate: input.expiryDate }
+          : { error: expiry.error, expiryDate: input.expiryDate },
+      });
+    }
+
+    // 2. Parallel Core Checks (NIA + Vendor Biometric + Sanctions + Address)
+    const checkPromises: Array<Promise<IdentityCheckResult>> = [
       this.nia.verifyIdentity(input),
       this.idVerification.verifyIdentity(input),
       this.sanctions.screen(input),
-    ]);
-    const checks = [niaResult, vendorResult, sanctionsResult];
-    return { verified: checks.every((c) => c.pass), checks };
+    ];
+
+    if (this.addressVerifier && input.digitalAddress) {
+      checkPromises.push(this.addressVerifier.verifyAddress(input));
+    }
+
+    const parallelResults = await Promise.all(checkPromises);
+    checks.push(...parallelResults);
+
+    const verified = checks.every((c) => c.pass);
+    const flaggedForReview = checks.some((c) => c.flaggedForReview);
+
+    return {
+      verified,
+      flaggedForReview,
+      checks,
+    };
   }
 }

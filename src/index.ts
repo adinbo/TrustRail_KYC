@@ -4,6 +4,7 @@ import { QoreIDClient } from "./qoreid/client.js";
 import { MockIdVerificationClient } from "./mock/idVerification.js";
 import { MockSanctionsClient } from "./sanctions/client.js";
 import { OpenSanctionsClient } from "./sanctions/opensanctions.js";
+import { MockGhanaPostClient } from "./address/ghanapost.js";
 import { IdentityOrchestrator } from "./orchestrator.js";
 
 export type {
@@ -27,6 +28,9 @@ export { IdentityOrchestrator } from "./orchestrator.js";
 export * from "./validation.js";
 export * from "./utils/masking.js";
 export * from "./adapter/cediramp.js";
+export * from "./address/ghanapost.js";
+export * from "./webhooks/receiver.js";
+export * from "./workers/rescreening.js";
 
 /** Builds an orchestrator from environment variables — see .env.example.
  *  KYC_VENDOR picks which identity vendor fills the IdVerificationClient
@@ -96,5 +100,6 @@ export function buildOrchestratorFromEnv(): IdentityOrchestrator {
     throw new Error(`Unknown SANCTIONS_MODE "${sanctionsMode}" — expected "mock" or "opensanctions".`);
   }
 
-  return new IdentityOrchestrator(new MockNiaClient(), idVerification, sanctions);
+  const addressVerifier = new MockGhanaPostClient();
+  return new IdentityOrchestrator(new MockNiaClient(), idVerification, sanctions, addressVerifier);
 }

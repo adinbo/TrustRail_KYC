@@ -76,3 +76,101 @@ export function normalizePhoneNumber(phone?: string): string | undefined {
   // If local Ghana format 0244xxxxxx, optionally convert or retain standard
   return cleaned;
 }
+
+/**
+ * Validates document expiry date in ISO 8601 format (YYYY-MM-DD) against current date.
+ */
+export function validateDocumentExpiry(
+  expiryDateString?: string,
+): { valid: boolean; isExpired?: boolean; error?: string } {
+  if (!expiryDateString) {
+    return { valid: false, error: "Expiry date is required." };
+  }
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(expiryDateString.trim())) {
+    return { valid: false, error: "Expiry date must be in YYYY-MM-DD format." };
+  }
+
+  const expiry = new Date(expiryDateString.trim());
+  if (isNaN(expiry.getTime())) {
+    return { valid: false, error: "Invalid expiry date." };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (expiry < today) {
+    return { valid: false, isExpired: true, error: `Document expired on ${expiryDateString}.` };
+  }
+
+  return { valid: true, isExpired: false };
+}
+
+/**
+ * Standard GhanaPost GPS Digital Address format: XX-NNN-NNNN or XX-NNNN-NNNN (e.g. AK-039-5028, GA-183-9214).
+ */
+export const GHANAPOST_GPS_REGEX = /^[A-Z]{1,2}-\d{3,4}-\d{4}$/i;
+
+const GHANA_REGION_PREFIXES: Record<string, string> = {
+  GA: "Greater Accra (Accra Metropolitan)",
+  GS: "Greater Accra (South)",
+  GW: "Greater Accra (West)",
+  GB: "Greater Accra (Ga South)",
+  GE: "Greater Accra (East)",
+  GD: "Greater Accra (Dodowa/Adentan)",
+  GN: "Greater Accra (North)",
+  AK: "Ashanti (Kumasi Metropolitan)",
+  AS: "Ashanti (South)",
+  AE: "Ashanti (East)",
+  AN: "Ashanti (North)",
+  AH: "Ashanti",
+  CR: "Central (Cape Coast)",
+  CC: "Central",
+  CP: "Central",
+  ER: "Eastern (Koforidua)",
+  EN: "Eastern (North)",
+  ES: "Eastern (South)",
+  WR: "Western (Sekondi-Takoradi)",
+  WS: "Western (South)",
+  WN: "Western North",
+  VR: "Volta (Ho)",
+  VE: "Volta (East)",
+  VN: "Volta (North / Oti)",
+  NR: "Northern (Tamale)",
+  NE: "North East",
+  NW: "Savannah",
+  UE: "Upper East (Bolgatanga)",
+  UW: "Upper West (Wa)",
+  BA: "Bono (Sunyani)",
+  BE: "Bono East (Techiman)",
+  BW: "Ahafo (Goaso)",
+  BN: "Bono North",
+};
+
+/**
+ * Validates GhanaPost GPS digital address format and identifies region metadata.
+ */
+export function validateGhanaPostGps(
+  digitalAddress?: string,
+): { valid: boolean; formattedAddress?: string; regionName?: string; error?: string } {
+  if (!digitalAddress) {
+    return { valid: false, error: "Digital address is required." };
+  }
+
+  const cleaned = digitalAddress.trim().toUpperCase();
+  if (!GHANAPOST_GPS_REGEX.test(cleaned)) {
+    return {
+      valid: false,
+      error: `Invalid GhanaPost GPS format (${cleaned}). Expected format: XX-NNN-NNNN (e.g., AK-039-5028, GA-183-9214)`,
+    };
+  }
+
+  const prefix = cleaned.split("-")[0] || "";
+  const regionName = (prefix ? GHANA_REGION_PREFIXES[prefix] : undefined) || "Ghana Regional District";
+
+  return {
+    valid: true,
+    formattedAddress: cleaned,
+    regionName,
+  };
+}

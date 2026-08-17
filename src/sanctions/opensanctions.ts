@@ -48,7 +48,10 @@ export interface OpenSanctionsConfig {
 
 interface OpenSanctionsResult {
   id: string;
-  properties?: { name?: string[] };
+  properties?: {
+    name?: string[];
+    topics?: string[];
+  };
   match: boolean;
   score: number;
   features?: Record<string, number>;
@@ -98,6 +101,7 @@ export class OpenSanctionsClient implements SanctionsScreeningClient {
         return {
           source: "sanctions",
           pass: false,
+          riskCategory: "SANCTION",
           detail: { httpStatus: res.status, body: await res.text() },
         };
       }
@@ -107,17 +111,51 @@ export class OpenSanctionsClient implements SanctionsScreeningClient {
       };
       const results = body.responses?.q1?.results ?? [];
       const hit = results.find((r) => r.match);
-      // pass = true means "no issue found" — a watchlist hit means the
-      // person matched a sanctions/PEP/crime entry and must NOT pass
-      // automatically; this only decides pass/fail, real deployments would
-      // route a hit to human review rather than a hard block.
-      const pass = !hit;
+
+      if (!hit) {
+        return {
+          source: "sanctions",
+          pass: true,
+          riskCategory: "CLEAR",
+          detail: { note: "no watchlist match", candidatesChecked: results.length },
+          raw: body,
+        };
+      }
+
+      const topics = hit.properties?.topics || [];
+      const isHardSanction = topics.some((t) => t.toLowerCase().includes("sanction")) || topics.length === 0;
+      const isPep = topics.some((t) => t.toLowerCase().includes("pep") || t.toLowerCase().includes("politic"));
+      const isAdverseMedia = topics.some((t) => t.toLowerCase().includes("crime") || t.toLowerCase().includes("debarment"));
+
+      if (isHardSanction && !isPep) {
+        // Hard Sanction match (OFAC, EU, UN, etc.) -> MUST NOT PASS
+        return {
+          source: "sanctions",
+          pass: false,
+          riskCategory: "SANCTION",
+          detail: {
+            matchedName: hit.properties?.name,
+            score: hit.score,
+            topics,
+            note: "Mandatory Sanctions list match detected",
+          },
+          raw: body,
+        };
+      }
+
+      // PEP or Adverse Media -> Passes automated gate but flags for Enhanced Due Diligence (EDD)
+      const riskCategory = isPep ? "PEP" : isAdverseMedia ? "ADVERSE_MEDIA" : "SANCTION";
       return {
         source: "sanctions",
-        pass,
-        detail: hit
-          ? { matchedName: hit.properties?.name, score: hit.score, features: hit.features }
-          : { note: "no watchlist match", candidatesChecked: results.length },
+        pass: true,
+        flaggedForReview: true,
+        riskCategory,
+        detail: {
+          matchedName: hit.properties?.name,
+          score: hit.score,
+          topics,
+          note: `${riskCategory} flagged for Enhanced Due Diligence compliance review`,
+        },
         raw: body,
       };
     } catch (err) {

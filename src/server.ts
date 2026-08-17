@@ -343,6 +343,33 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "POST" && url.pathname === "/api/webhooks/kyc") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", async () => {
+      try {
+        const sourceHeader = (req.headers["x-kyc-source"] as string) || "smile";
+        const signature = (req.headers["x-smile-signature"] as string) || (req.headers["signature"] as string);
+        const { processVendorWebhook } = await import("./webhooks/receiver.js");
+
+        const result = processVendorWebhook({
+          source: sourceHeader === "qoreid" ? "qoreid" : "smile",
+          signature,
+          rawBody: body,
+        });
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify(result, null, 2));
+      } catch (err) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: err instanceof Error ? err.message : String(err) }));
+      }
+    });
+    return;
+  }
+
   if (req.method === "POST" && url.pathname === "/api/verify") {
     let body = "";
     req.on("data", (chunk) => {
@@ -358,6 +385,10 @@ const server = http.createServer(async (req, res) => {
           dateOfBirth: json.dateOfBirth,
           phoneNumber: json.phoneNumber,
           email: json.email,
+          expiryDate: json.expiryDate,
+          digitalAddress: json.digitalAddress,
+          selfieImage: json.selfieImage,
+          idCardFrontImage: json.idCardFrontImage,
         });
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(decision, null, 2));

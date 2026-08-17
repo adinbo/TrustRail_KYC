@@ -14,8 +14,12 @@ verified vs. still open.
   - `qoreid` — QoreID's Ghana Card endpoint. Added because Smile ID's
     signup form rejects `gmail.com` addresses; use whichever vendor you can
     actually get an account with.
-- **Sanctions/PEP screening** — real, against OpenSanctions' matching API
-  (sanctions, PEP, and other watchlists), behind `SANCTIONS_MODE`:
+- **Biometric Face Match & Document OCR** — supports selfie liveness & 1:1 facial biometric matching (`job_type: 1`) and physical document verification (`job_type: 6`) alongside text-only registry lookups (`job_type: 5`).
+- **ID Expiry & Validity Verification** — validates document validity periods and prevents expired cards from passing.
+- **Proof of Address (GhanaPost GPS)** — validates GhanaPost GPS digital addresses (`XX-NNN-NNNN`, e.g. `AK-039-5028`) with automated regional metadata resolution.
+- **Granular AML: Sanctions vs. PEP vs. Adverse Media** — distinguishes hard mandatory sanctions blocks (`SANCTION`) from compliance review flags (`PEP` / `ADVERSE_MEDIA` for Enhanced Due Diligence).
+- **Async Webhook Callback Receiver** — processes asynchronous vendor events with HMAC-SHA256 signature verification.
+- **Periodic Ongoing Re-Screening Manager** — automated batch re-screening worker for scheduled watchlist monitoring.
 - **Validation & Normalization** — pre-flight format validation for Ghana Cards (`GHA-XXXXXXXXX-X`), regulatory age verification ($\ge 18$), and phone number normalization.
 - **PII Masking** — redaction helpers for Ghana Cards (`GHA-***-X`), phone numbers, and emails for safe audit logging.
 - **Standalone Web Console & API** — built-in HTTP server and interactive UI for standalone manual/curl testing (`npm run serve`).

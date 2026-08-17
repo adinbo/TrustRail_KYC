@@ -1,6 +1,7 @@
+export type IdType = "GHANA_CARD" | "PASSPORT" | "DRIVERS_LICENSE" | "VOTERS_ID" | "NIN" | "BVN";
+
 /** Input identity info a partner supplies for verification — mirrors the
- *  fields NIA, Smile ID's Basic/Enhanced KYC, and QoreID's Ghana Card
- *  endpoint all actually need. */
+ *  fields NIA, Smile ID's Basic/Enhanced & Biometric KYC, and QoreID endpoints. */
 export interface IdentityInput {
   firstName: string;
   lastName: string;
@@ -16,15 +17,39 @@ export interface IdentityInput {
   email?: string;
   /** Your own identifier for this end-user — used as Smile's user_id. */
   externalRef: string;
+  /** Supported document type (defaults to GHANA_CARD). */
+  idType?: IdType;
+  /** Document expiry date in ISO 8601 format (YYYY-MM-DD). */
+  expiryDate?: string;
+  /** Base64-encoded user selfie image or hosted URL for liveness & face matching. */
+  selfieImage?: string;
+  /** Base64-encoded front photo of the physical ID document. */
+  idCardFrontImage?: string;
+  /** Base64-encoded back photo of the physical ID document. */
+  idCardBackImage?: string;
+  /** GhanaPost GPS Digital Address (e.g. "AK-039-5028") for Proof of Address. */
+  digitalAddress?: string;
 }
 
-/** Result of a single check (NIA registry, an identity vendor, sanctions). */
+export type RiskCategory = "SANCTION" | "PEP" | "ADVERSE_MEDIA" | "CLEAR";
+
+/** Result of a single check (NIA registry, an identity vendor, sanctions, address, expiry). */
 export interface IdentityCheckResult {
-  source: "nia" | "smile" | "qoreid" | "mock" | "sanctions";
+  source: "nia" | "smile" | "qoreid" | "mock" | "sanctions" | "address" | "expiry";
   /** true = check passed / no issue found. */
   pass: boolean;
+  /** For non-blocking compliance flags (e.g. PEP requiring Enhanced Due Diligence). */
+  flaggedForReview?: boolean;
+  /** Granular AML / Watchlist category. */
+  riskCategory?: RiskCategory;
   /** Free-form reason when pass is false, or extra detail either way. */
   detail?: unknown;
+  /** Biometric metrics if facial match / liveness was evaluated. */
+  biometrics?: {
+    faceMatchScore?: number;
+    livenessPassed?: boolean;
+    confidenceLevel?: string;
+  };
   /** Raw response from the underlying provider, kept for audit — never
    *  logged/displayed by default, just retained. */
   raw?: unknown;
@@ -32,16 +57,15 @@ export interface IdentityCheckResult {
 
 /** Combined result across all checks the orchestrator runs. */
 export interface IdentityVerificationResult {
-  /** true only if every check that ran passed. */
+  /** true only if every mandatory check that ran passed. */
   verified: boolean;
+  /** true if any check flagged the profile for manual / EDD review (e.g. PEP). */
+  flaggedForReview?: boolean;
   checks: IdentityCheckResult[];
 }
 
 /** Shared contract for the "biometric/registry identity vendor" slot in the
- *  orchestrator — Smile ID and QoreID both satisfy this structurally (an
- *  interface has no private fields, so a plain object test double works
- *  too; see test/orchestrator.test.ts). Swapping vendors, or running both
- *  side by side, is a config change, not a redesign. */
+ *  orchestrator — Smile ID and QoreID both satisfy this structurally. */
 export interface IdVerificationClient {
   verifyIdentity(input: IdentityInput): Promise<IdentityCheckResult>;
 }

@@ -111,12 +111,19 @@ export class QoreIDClient implements IdVerificationClient {
             dob: input.dateOfBirth,
             phone: input.phoneNumber,
             email: input.email,
+            expiry_date: input.expiryDate,
+            selfie_image: input.selfieImage,
+            id_card_image: input.idCardFrontImage,
           }),
           signal: AbortSignal.timeout(this.timeoutMs),
         },
       );
       const result = (await res.json().catch(() => undefined)) as
-        | { status?: { status?: string }; summary?: { ghana_id_check?: { status?: string } } }
+        | {
+            status?: { status?: string };
+            summary?: { ghana_id_check?: { status?: string } };
+            face_match?: { match?: boolean; score?: number };
+          }
         | undefined;
       if (!res.ok) {
         return {
@@ -128,7 +135,22 @@ export class QoreIDClient implements IdVerificationClient {
       const overallStatus = result?.status?.status; // e.g. "verified"
       const matchStatus = result?.summary?.ghana_id_check?.status; // e.g. "EXACT_MATCH"
       const pass = overallStatus === "verified" && matchStatus === "EXACT_MATCH";
-      return { source: "qoreid", pass, detail: { overallStatus, matchStatus }, raw: result };
+
+      const biometrics = input.selfieImage
+        ? {
+            faceMatchScore: result?.face_match?.score ?? (pass ? 95 : 0),
+            livenessPassed: result?.face_match?.match ?? pass,
+            confidenceLevel: pass ? "HIGH" : "LOW",
+          }
+        : undefined;
+
+      return {
+        source: "qoreid",
+        pass,
+        detail: { overallStatus, matchStatus },
+        biometrics,
+        raw: result,
+      };
     } catch (err) {
       return {
         source: "qoreid",

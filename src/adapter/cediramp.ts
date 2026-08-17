@@ -10,10 +10,15 @@ export interface CediRampUserKycParams {
   dateOfBirth: string;
   phoneNumber?: string;
   email?: string;
+  expiryDate?: string;
+  digitalAddress?: string;
+  selfieImage?: string;
+  idCardFrontImage?: string;
 }
 
 export interface CediRampKycDecision {
   passed: boolean;
+  flaggedForReview?: boolean;
   reason?: string;
   details: {
     validationPassed: boolean;
@@ -89,6 +94,10 @@ export class CediRampKycAdapter {
       phoneNumber: normalizePhoneNumber(params.phoneNumber),
       email: params.email?.trim(),
       externalRef: params.userId,
+      expiryDate: params.expiryDate?.trim(),
+      digitalAddress: params.digitalAddress?.trim(),
+      selfieImage: params.selfieImage,
+      idCardFrontImage: params.idCardFrontImage,
     };
 
     // 3. Run Orchestrator
@@ -101,6 +110,7 @@ export class CediRampKycAdapter {
 
     return {
       passed: result.verified,
+      flaggedForReview: result.flaggedForReview,
       reason,
       details: {
         validationPassed: true,
