@@ -27,13 +27,20 @@ export interface NiaClient {
  */
 export class MockNiaClient implements NiaClient {
   async verifyIdentity(input: IdentityInput): Promise<IdentityCheckResult> {
-    const registryMatch = !input.idNumber.startsWith("0");
+    const isMockFailure =
+      input.idNumber.startsWith("0") ||
+      input.idNumber.toUpperCase().startsWith("GHA-0") ||
+      input.idNumber.includes("000000000") ||
+      input.lastName.toLowerCase().includes("fail") ||
+      input.lastName.toLowerCase().includes("dangerfield");
+
+    const registryMatch = !isMockFailure;
     return {
       source: "nia",
       pass: registryMatch,
       detail: registryMatch
         ? { note: "mock: registry match" }
-        : { note: "mock: no registry match for this ID number" },
+        : { note: "mock: no registry match for this ID number (simulated mismatch)" },
     };
   }
 }

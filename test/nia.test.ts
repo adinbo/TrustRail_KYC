@@ -17,8 +17,11 @@ describe("MockNiaClient", () => {
     expect(result.pass).toBe(true);
   });
 
-  it("fails for an ID number starting with 0 (the deliberate failure-path test hook)", async () => {
-    const result = await new MockNiaClient().verifyIdentity({ ...baseInput, idNumber: "0123456" });
-    expect(result.pass).toBe(false);
+  it("fails for an ID number starting with 0 or GHA-0 (e.g. GHA-000000000-0)", async () => {
+    const result1 = await new MockNiaClient().verifyIdentity({ ...baseInput, idNumber: "0123456" });
+    expect(result1.pass).toBe(false);
+
+    const result2 = await new MockNiaClient().verifyIdentity({ ...baseInput, idNumber: "GHA-000000000-0" });
+    expect(result2.pass).toBe(false);
   });
 });

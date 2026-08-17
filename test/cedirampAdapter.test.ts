@@ -62,13 +62,12 @@ describe("CediRampKycAdapter", () => {
     const res = await adapter.evaluateUser({
       userId: "usr-004",
       fullName: "Test Failure",
-      idNumber: "GHA-012345678-9", // starts with 0 inside id number, wait: starts with "0" in MockNiaClient -> idNumber.startsWith("0")
-      // In MockNiaClient: !input.idNumber.startsWith("0") -> "GHA-0..." starts with "G", not "0"!
-      // Let's test standard mock failure if starts with 0
+      idNumber: "GHA-000000000-0",
       dateOfBirth: "1990-01-01",
     });
 
-    // GHA-0... starts with G, so mock passes.
-    expect(res.passed).toBe(true);
+    expect(res.passed).toBe(false);
+    expect(res.details.validationPassed).toBe(true);
+    expect(res.reason).toContain("Verification failed on checks");
   });
 });

@@ -21,13 +21,20 @@ import type { IdentityCheckResult, IdentityInput, IdVerificationClient } from ".
  */
 export class MockIdVerificationClient implements IdVerificationClient {
   async verifyIdentity(input: IdentityInput): Promise<IdentityCheckResult> {
-    const registryMatch = !input.idNumber.startsWith("0");
+    const isMockFailure =
+      input.idNumber.startsWith("0") ||
+      input.idNumber.toUpperCase().startsWith("GHA-0") ||
+      input.idNumber.includes("000000000") ||
+      input.lastName.toLowerCase().includes("fail") ||
+      input.lastName.toLowerCase().includes("dangerfield");
+
+    const registryMatch = !isMockFailure;
     return {
       source: "mock", // honest label — never impersonates "qoreid"/"smile" in the audit trail
       pass: registryMatch,
       detail: registryMatch
         ? { note: "mock: registry+biometric match (no real vendor call — KYC_VENDOR=mock)" }
-        : { note: "mock: no registry match for this ID number (KYC_VENDOR=mock)" },
+        : { note: "mock: no registry match for this ID number (simulated mismatch — KYC_VENDOR=mock)" },
     };
   }
 }
