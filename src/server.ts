@@ -225,14 +225,29 @@ const HTML_TESTER = `<!DOCTYPE html>
             <label for="phoneNumber">Phone Number (Optional)</label>
             <input type="tel" id="phoneNumber" value="+233241234567">
           </div>
+          <div class="form-group">
+            <label for="digitalAddress">GhanaPost GPS (Proof of Address)</label>
+            <input type="text" id="digitalAddress" value="GA-183-9214" placeholder="e.g. AK-039-5028">
+          </div>
           <div class="form-group full">
             <label for="email">Email Address (Optional)</label>
             <input type="email" id="email" value="amina.clearwater@example.com">
+          </div>
+          <div class="form-group">
+            <label for="selfieFile">User Selfie (Biometric Liveness & Face Match)</label>
+            <input type="file" id="selfieFile" accept="image/*">
+            <input type="hidden" id="selfieBase64">
+          </div>
+          <div class="form-group">
+            <label for="idCardFile">ID Card Photo (Document OCR & Tamper Check)</label>
+            <input type="file" id="idCardFile" accept="image/*">
+            <input type="hidden" id="idCardBase64">
           </div>
         </div>
 
         <div class="btn-row">
           <button type="submit" id="submitBtn">⚡ Run KYC Verification</button>
+          <button type="button" class="secondary" id="attachDemoPhotosBtn">📷 Attach Demo Photos</button>
           <button type="button" class="secondary" id="fillPassBtn">Prefill Pass</button>
           <button type="button" class="secondary" id="fillFailBtn">Prefill Fail</button>
         </div>
@@ -240,12 +255,16 @@ const HTML_TESTER = `<!DOCTYPE html>
 
       <div class="results" id="resultsSection">
         <div id="statusBadge" class="result-badge"></div>
+        <div id="biometricsCard" style="display:none; background: rgba(37,99,235,0.1); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+          <h4 style="color: #60a5fa; margin-bottom: 0.5rem;">📸 Biometric & Photo Screening Results</h4>
+          <div id="biometricsContent" style="font-size: 0.9rem; color: #cbd5e1;"></div>
+        </div>
         <pre><code id="jsonOutput"></code></pre>
       </div>
 
       <div class="config-box">
         <strong>Runtime Configuration:</strong>
-        <code>KYC_VENDOR=${process.env.KYC_VENDOR || "smile"}</code> |
+        <code>KYC_VENDOR=${process.env.KYC_VENDOR || "qoreid"}</code> |
         <code>SANCTIONS_MODE=${process.env.SANCTIONS_MODE || "mock"}</code> |
         <code>NIA_MODE=${process.env.NIA_MODE || "mock"}</code>
       </div>
@@ -258,6 +277,34 @@ const HTML_TESTER = `<!DOCTYPE html>
     const resultsSection = document.getElementById('resultsSection');
     const statusBadge = document.getElementById('statusBadge');
     const jsonOutput = document.getElementById('jsonOutput');
+    const biometricsCard = document.getElementById('biometricsCard');
+    const biometricsContent = document.getElementById('biometricsContent');
+
+    const samplePhotoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+    function handleFile(inputElem, hiddenElem) {
+      inputElem.addEventListener('change', () => {
+        const file = inputElem.files[0];
+        if (!file) {
+          hiddenElem.value = "";
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          hiddenElem.value = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    handleFile(document.getElementById('selfieFile'), document.getElementById('selfieBase64'));
+    handleFile(document.getElementById('idCardFile'), document.getElementById('idCardBase64'));
+
+    document.getElementById('attachDemoPhotosBtn').addEventListener('click', () => {
+      document.getElementById('selfieBase64').value = samplePhotoBase64;
+      document.getElementById('idCardBase64').value = samplePhotoBase64;
+      alert("✓ Attached demo selfie and ID card photos for biometric verification testing.");
+    });
 
     document.getElementById('fillPassBtn').addEventListener('click', () => {
       document.getElementById('fullName').value = "Amina Fatou Clearwater";
@@ -265,6 +312,7 @@ const HTML_TESTER = `<!DOCTYPE html>
       document.getElementById('dateOfBirth').value = "1992-04-12";
       document.getElementById('email').value = "amina.clearwater@example.com";
       document.getElementById('phoneNumber').value = "+233241234567";
+      document.getElementById('digitalAddress').value = "GA-183-9214";
     });
 
     document.getElementById('fillFailBtn').addEventListener('click', () => {
@@ -272,6 +320,7 @@ const HTML_TESTER = `<!DOCTYPE html>
       document.getElementById('idNumber').value = "GHA-000000000-0";
       document.getElementById('dateOfBirth').value = "1990-01-01";
       document.getElementById('email').value = "rashid.dangerfield@example.com";
+      document.getElementById('digitalAddress').value = "GA-183-9214";
     });
 
     form.addEventListener('submit', async (e) => {
@@ -279,6 +328,7 @@ const HTML_TESTER = `<!DOCTYPE html>
       submitBtn.disabled = true;
       submitBtn.innerText = "Verifying...";
       resultsSection.style.display = "none";
+      biometricsCard.style.display = "none";
 
       const payload = {
         userId: "test-" + Date.now(),
@@ -287,6 +337,9 @@ const HTML_TESTER = `<!DOCTYPE html>
         dateOfBirth: document.getElementById('dateOfBirth').value,
         phoneNumber: document.getElementById('phoneNumber').value || undefined,
         email: document.getElementById('email').value || undefined,
+        digitalAddress: document.getElementById('digitalAddress').value || undefined,
+        selfieImage: document.getElementById('selfieBase64').value || undefined,
+        idCardFrontImage: document.getElementById('idCardBase64').value || undefined,
       };
 
       try {
@@ -305,6 +358,16 @@ const HTML_TESTER = `<!DOCTYPE html>
           statusBadge.className = "result-badge error";
           statusBadge.innerHTML = "✗ NOT PASSED — " + (data.reason || "Verification Failed");
         }
+
+        const vendorCheck = data.details?.verificationResult?.checks?.find(c => c.source === 'smile' || c.source === 'qoreid' || c.source === 'mock');
+        if (vendorCheck?.biometrics) {
+          biometricsCard.style.display = "block";
+          biometricsContent.innerHTML = 
+            '<div><strong>Face Match Score:</strong> ' + vendorCheck.biometrics.faceMatchScore + '%</div>' +
+            '<div><strong>Liveness Verification:</strong> ' + (vendorCheck.biometrics.livenessPassed ? '✓ Passed (Anti-Spoof Cleared)' : '✗ Failed') + '</div>' +
+            '<div><strong>Confidence Level:</strong> ' + (vendorCheck.biometrics.confidenceLevel || 'HIGH') + '</div>';
+        }
+
         jsonOutput.innerText = JSON.stringify(data, null, 2);
       } catch (err) {
         resultsSection.style.display = "block";
