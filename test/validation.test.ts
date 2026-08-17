@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isValidGhanaCard, normalizeGhanaCard, validateDateOfBirth, normalizePhoneNumber } from "../src/validation.js";
+import {
+  isValidGhanaCard,
+  normalizeGhanaCard,
+  validateDateOfBirth,
+  normalizePhoneNumber,
+  validateGhanaPhoneNumber,
+} from "../src/validation.js";
 
 describe("Input Validation & Normalization", () => {
   describe("Ghana Card format validation", () => {
@@ -52,6 +58,18 @@ describe("Input Validation & Normalization", () => {
       expect(normalizePhoneNumber("241234567")).toBe("0241234567");
       expect(normalizePhoneNumber("024-123-4567")).toBe("0241234567");
       expect(normalizePhoneNumber("024 123 4567")).toBe("0241234567");
+    });
+
+    it("validates network prefix and rejects random letters/invalid lengths", () => {
+      expect(validateGhanaPhoneNumber("+233 24 123 4567").valid).toBe(true);
+      expect(validateGhanaPhoneNumber("+233 24 123 4567").network).toBe("MTN");
+
+      expect(validateGhanaPhoneNumber("+233 20 123 4567").valid).toBe(true);
+      expect(validateGhanaPhoneNumber("+233 20 123 4567").network).toBe("Telecel");
+
+      expect(validateGhanaPhoneNumber("invalid text").valid).toBe(false);
+      expect(validateGhanaPhoneNumber("12345").valid).toBe(false);
+      expect(validateGhanaPhoneNumber("").valid).toBe(true);
     });
   });
 });

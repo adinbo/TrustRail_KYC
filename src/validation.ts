@@ -100,12 +100,56 @@ export function normalizePhoneNumber(phone?: string): string | undefined {
     return `0${digits}`;
   }
 
-  // If already 10 digits starting with 0
+  // 5. If 10 digits starting with 0
   if (digits.length === 10 && digits.startsWith("0")) {
     return digits;
   }
 
   return digits || undefined;
+}
+
+/**
+ * Validates whether a phone number matches standard Ghana mobile network prefixes.
+ */
+export function validateGhanaPhoneNumber(
+  phone?: string,
+): { valid: boolean; normalized?: string; network?: string; error?: string } {
+  if (!phone || !phone.trim()) {
+    return { valid: true }; // Optional field
+  }
+
+  const normalized = normalizePhoneNumber(phone);
+  if (!normalized || !/^0\d{9}$/.test(normalized)) {
+    return {
+      valid: false,
+      error: `Invalid Ghana phone number (${phone}). Expected 9 digits after +233 (e.g., +233 24 123 4567).`,
+    };
+  }
+
+  const prefix = normalized.slice(0, 3);
+  const networkMap: Record<string, string> = {
+    "024": "MTN",
+    "054": "MTN",
+    "055": "MTN",
+    "059": "MTN",
+    "053": "MTN",
+    "020": "Telecel",
+    "050": "Telecel",
+    "027": "AT (AirtelTigo)",
+    "057": "AT (AirtelTigo)",
+    "026": "AT (AirtelTigo)",
+    "056": "AT (AirtelTigo)",
+    "028": "Expresso",
+    "023": "Glo",
+  };
+
+  const network = networkMap[prefix] || "Ghana Cellular";
+
+  return {
+    valid: true,
+    normalized,
+    network,
+  };
 }
 
 /**

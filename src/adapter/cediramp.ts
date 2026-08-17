@@ -1,6 +1,12 @@
 import type { IdentityOrchestrator } from "../orchestrator.js";
 import type { IdentityInput, IdentityVerificationResult } from "../types.js";
-import { isValidGhanaCard, normalizeGhanaCard, validateDateOfBirth, normalizePhoneNumber } from "../validation.js";
+import {
+  isValidGhanaCard,
+  normalizeGhanaCard,
+  validateDateOfBirth,
+  normalizePhoneNumber,
+  validateGhanaPhoneNumber,
+} from "../validation.js";
 import { maskIdentityInput } from "../utils/masking.js";
 
 export interface CediRampUserKycParams {
@@ -150,6 +156,28 @@ export class CediRampKycAdapter {
           }),
         },
       };
+    }
+
+    if (params.phoneNumber) {
+      const phoneValidation = validateGhanaPhoneNumber(params.phoneNumber);
+      if (!phoneValidation.valid) {
+        return {
+          passed: false,
+          reason: phoneValidation.error || "Invalid phone number format",
+          details: {
+            validationPassed: false,
+            maskedAudit: maskIdentityInput({
+              firstName,
+              lastName,
+              idNumber: normalizedId,
+              dateOfBirth: params.dateOfBirth,
+              phoneNumber: params.phoneNumber,
+              email: params.email,
+              externalRef: params.userId,
+            }),
+          },
+        };
+      }
     }
 
     const identityInput: IdentityInput = {

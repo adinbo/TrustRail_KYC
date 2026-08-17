@@ -117,6 +117,47 @@ const HTML_TESTER = `<!DOCTYPE html>
       border-color: #3b82f6;
       box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
     }
+    .phone-input-wrapper {
+      display: flex;
+      align-items: stretch;
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: all 0.2s ease;
+    }
+    .phone-input-wrapper:focus-within {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.25);
+    }
+    .phone-prefix-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+      background: rgba(30, 41, 59, 0.8);
+      padding: 0 0.85rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #94a3b8;
+      border-right: 1px solid var(--border);
+      user-select: none;
+    }
+    .phone-input-wrapper input {
+      flex: 1;
+      border: none !important;
+      border-radius: 0 !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      padding: 0.75rem 0.85rem;
+    }
+    .helper-text {
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-top: 0.2rem;
+    }
+    .helper-text strong {
+      color: #93c5fd;
+    }
     .btn-row {
       margin-top: 1.5rem;
       display: flex;
@@ -222,8 +263,12 @@ const HTML_TESTER = `<!DOCTYPE html>
             <input type="date" id="dateOfBirth" value="1992-04-12" required>
           </div>
           <div class="form-group">
-            <label for="phoneNumber">Phone Number (Optional)</label>
-            <input type="tel" id="phoneNumber" value="+233 24 123 4567" placeholder="+233 24 123 4567">
+            <label for="phoneNumber">Phone Number (Ghana Mobile)</label>
+            <div class="phone-input-wrapper">
+              <span class="phone-prefix-badge">🇬🇭 +233</span>
+              <input type="tel" id="phoneNumber" value="24 123 4567" placeholder="24 123 4567" maxlength="11" autocomplete="tel-national">
+            </div>
+            <small class="helper-text">Format: <strong>+233 XX XXX XXXX</strong> (e.g. 24 123 4567)</small>
           </div>
           <div class="form-group">
             <label for="digitalAddress">GhanaPost GPS (Proof of Address)</label>
@@ -279,6 +324,21 @@ const HTML_TESTER = `<!DOCTYPE html>
     const jsonOutput = document.getElementById('jsonOutput');
     const biometricsCard = document.getElementById('biometricsCard');
     const biometricsContent = document.getElementById('biometricsContent');
+    const phoneInput = document.getElementById('phoneNumber');
+
+    function formatPhoneDigits(val) {
+      let digits = (val || '').replace(/\D/g, '');
+      if (digits.startsWith('233')) digits = digits.slice(3);
+      if (digits.startsWith('0')) digits = digits.slice(1);
+      digits = digits.slice(0, 9);
+      if (digits.length <= 2) return digits;
+      if (digits.length <= 5) return digits.slice(0, 2) + ' ' + digits.slice(2);
+      return digits.slice(0, 2) + ' ' + digits.slice(2, 5) + ' ' + digits.slice(5);
+    }
+
+    phoneInput.addEventListener('input', (e) => {
+      e.target.value = formatPhoneDigits(e.target.value);
+    });
 
     const samplePhotoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
@@ -311,7 +371,7 @@ const HTML_TESTER = `<!DOCTYPE html>
       document.getElementById('idNumber').value = "GHA-712345678-1";
       document.getElementById('dateOfBirth').value = "1992-04-12";
       document.getElementById('email').value = "amina.clearwater@example.com";
-      document.getElementById('phoneNumber').value = "+233 24 123 4567";
+      document.getElementById('phoneNumber').value = "24 123 4567";
       document.getElementById('digitalAddress').value = "GA-183-9214";
     });
 
@@ -320,7 +380,7 @@ const HTML_TESTER = `<!DOCTYPE html>
       document.getElementById('idNumber').value = "GHA-000000000-0";
       document.getElementById('dateOfBirth').value = "1990-01-01";
       document.getElementById('email').value = "rashid.dangerfield@example.com";
-      document.getElementById('phoneNumber').value = "+233 24 123 4567";
+      document.getElementById('phoneNumber').value = "24 123 4567";
       document.getElementById('digitalAddress').value = "GA-183-9214";
     });
 
@@ -331,12 +391,15 @@ const HTML_TESTER = `<!DOCTYPE html>
       resultsSection.style.display = "none";
       biometricsCard.style.display = "none";
 
+      const rawPhone = document.getElementById('phoneNumber').value.trim();
+      const formattedPhone = rawPhone ? ("+233 " + rawPhone) : undefined;
+
       const payload = {
         userId: "test-" + Date.now(),
         fullName: document.getElementById('fullName').value,
         idNumber: document.getElementById('idNumber').value,
         dateOfBirth: document.getElementById('dateOfBirth').value,
-        phoneNumber: document.getElementById('phoneNumber').value || undefined,
+        phoneNumber: formattedPhone,
         email: document.getElementById('email').value || undefined,
         digitalAddress: document.getElementById('digitalAddress').value || undefined,
         selfieImage: document.getElementById('selfieBase64').value || undefined,
