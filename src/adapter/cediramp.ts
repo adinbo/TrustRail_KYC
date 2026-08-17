@@ -6,6 +6,7 @@ import {
   validateDateOfBirth,
   normalizePhoneNumber,
   validateGhanaPhoneNumber,
+  validateUsPhoneNumber,
 } from "../validation.js";
 import { maskIdentityInput } from "../utils/masking.js";
 
@@ -163,7 +164,12 @@ export class CediRampKycAdapter {
     }
 
     if (params.phoneNumber) {
-      const phoneValidation = validateGhanaPhoneNumber(params.phoneNumber);
+      const cleanDigits = params.phoneNumber.replace(/[^\d+]/g, "");
+      const isGhana = cleanDigits.startsWith("+233") || cleanDigits.startsWith("233") || (cleanDigits.startsWith("0") && cleanDigits.length === 10);
+      const phoneValidation = isGhana
+        ? validateGhanaPhoneNumber(params.phoneNumber)
+        : validateUsPhoneNumber(params.phoneNumber);
+
       if (!phoneValidation.valid) {
         return {
           passed: false,

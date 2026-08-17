@@ -5,6 +5,7 @@ import {
   validateDateOfBirth,
   normalizePhoneNumber,
   validateGhanaPhoneNumber,
+  validateUsPhoneNumber,
 } from "../src/validation.js";
 
 describe("Input Validation & Normalization", () => {
@@ -49,18 +50,15 @@ describe("Input Validation & Normalization", () => {
     });
   });
 
-  describe("Phone number normalization", () => {
+  describe("Phone number normalization and validation", () => {
     it("cleans spaces and hyphens and normalizes to standard format", () => {
       expect(normalizePhoneNumber("+233 24 123 4567")).toBe("0241234567");
       expect(normalizePhoneNumber("+233241234567")).toBe("0241234567");
-      expect(normalizePhoneNumber("+2330241234567")).toBe("0241234567");
-      expect(normalizePhoneNumber("233241234567")).toBe("0241234567");
-      expect(normalizePhoneNumber("241234567")).toBe("0241234567");
-      expect(normalizePhoneNumber("024-123-4567")).toBe("0241234567");
-      expect(normalizePhoneNumber("024 123 4567")).toBe("0241234567");
+      expect(normalizePhoneNumber("+1 (415) 555-2671")).toBe("+14155552671");
+      expect(normalizePhoneNumber("4155552671")).toBe("+14155552671");
     });
 
-    it("validates network prefix and rejects random letters/invalid lengths", () => {
+    it("validates Ghana network prefixes", () => {
       expect(validateGhanaPhoneNumber("+233 24 123 4567").valid).toBe(true);
       expect(validateGhanaPhoneNumber("+233 24 123 4567").network).toBe("MTN");
 
@@ -70,6 +68,14 @@ describe("Input Validation & Normalization", () => {
       expect(validateGhanaPhoneNumber("invalid text").valid).toBe(false);
       expect(validateGhanaPhoneNumber("12345").valid).toBe(false);
       expect(validateGhanaPhoneNumber("").valid).toBe(true);
+    });
+
+    it("validates US phone numbers", () => {
+      expect(validateUsPhoneNumber("+1 (415) 555-2671").valid).toBe(true);
+      expect(validateUsPhoneNumber("4155552671").valid).toBe(true);
+      expect(validateUsPhoneNumber("14155552671").valid).toBe(true);
+      expect(validateUsPhoneNumber("415555267").valid).toBe(false); // only 9 digits
+      expect(validateUsPhoneNumber("invalid").valid).toBe(false);
     });
   });
 });

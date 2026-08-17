@@ -67,45 +67,70 @@ export function validateDateOfBirth(
 }
 
 /**
- * Normalizes and sanitizes phone numbers into standard Ghana local 10-digit format (0XXXXXXXXX).
- * Handles:
- * - "+233 24 123 4567" -> "0241234567"
- * - "+2330241234567"   -> "0241234567"
- * - "233241234567"     -> "0241234567"
- * - "241234567"        -> "0241234567"
- * - "024-123-4567"     -> "0241234567"
+ * Normalizes and sanitizes phone numbers across US (+1), Ghana (+233), and International E.164.
  */
 export function normalizePhoneNumber(phone?: string): string | undefined {
   if (!phone) return undefined;
 
-  // 1. Remove all spaces, dashes, parentheses, dots, and non-digit characters
+  // 1. Remove all spaces, dashes, parentheses, dots
   let digits = phone.replace(/[^\d+]/g, "");
 
-  // 2. Strip leading +233 or 233 country code
+  // 2. US / North American numbers (+1)
+  if (digits.startsWith("+1") && digits.length === 12) {
+    return `+1${digits.slice(2)}`;
+  }
+  if (digits.startsWith("1") && digits.length === 11) {
+    return `+1${digits.slice(1)}`;
+  }
+
+  // 3. Ghana numbers (+233)
   if (digits.startsWith("+233")) {
     digits = digits.slice(4);
-  } else if (digits.startsWith("233") && digits.length >= 11) {
+    return digits.length === 9 ? `0${digits}` : digits;
+  }
+  if (digits.startsWith("233") && digits.length >= 11) {
     digits = digits.slice(3);
-  } else if (digits.startsWith("+")) {
-    digits = digits.slice(1);
+    return digits.length === 9 ? `0${digits}` : digits;
   }
 
-  // 3. Strip any remaining leading zero if followed by 9 digits
-  if (digits.startsWith("0") && digits.length === 10) {
-    return digits;
-  }
-
-  // 4. If 9 digits (e.g. 241234567), prepend 0 to make standard 10 digits
+  // 4. Standard local Ghana 9 or 10 digits
   if (digits.length === 9) {
     return `0${digits}`;
   }
-
-  // 5. If 10 digits starting with 0
   if (digits.length === 10 && digits.startsWith("0")) {
     return digits;
   }
 
-  return digits || undefined;
+  // 5. Default E.164 or digits
+  return digits.startsWith("+") ? digits : (digits.length === 10 ? `+1${digits}` : digits);
+}
+
+/**
+ * Validates whether a phone number matches standard US / NANP (North American Numbering Plan) format (10 digits).
+ */
+export function validateUsPhoneNumber(
+  phone?: string,
+): { valid: boolean; normalized?: string; error?: string } {
+  if (!phone || !phone.trim()) {
+    return { valid: true };
+  }
+
+  let digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("1") && digits.length === 11) {
+    digits = digits.slice(1);
+  }
+
+  if (digits.length !== 10) {
+    return {
+      valid: false,
+      error: `Invalid US phone number (${phone}). Expected 10 digits (e.g. +1 415 555 2671).`,
+    };
+  }
+
+  return {
+    valid: true,
+    normalized: `+1${digits}`,
+  };
 }
 
 /**
