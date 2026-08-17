@@ -67,24 +67,45 @@ export function validateDateOfBirth(
 }
 
 /**
- * Normalizes phone numbers into standard international or local formats.
- * Ghana local format: 0244123456 (10 digits)
+ * Normalizes and sanitizes phone numbers into standard Ghana local 10-digit format (0XXXXXXXXX).
+ * Handles:
+ * - "+233 24 123 4567" -> "0241234567"
+ * - "+2330241234567"   -> "0241234567"
+ * - "233241234567"     -> "0241234567"
+ * - "241234567"        -> "0241234567"
+ * - "024-123-4567"     -> "0241234567"
  */
 export function normalizePhoneNumber(phone?: string): string | undefined {
   if (!phone) return undefined;
-  // Strip whitespace, hyphens, and parenthesis
-  let cleaned = phone.replace(/[\s\-()]/g, "");
 
-  // If +233XXXXXXXXX -> 0XXXXXXXXX (standard 10-digit Ghana telecom format)
-  if (cleaned.startsWith("+233")) {
-    cleaned = `0${cleaned.slice(4)}`;
-  } else if (cleaned.startsWith("233") && cleaned.length === 12) {
-    cleaned = `0${cleaned.slice(3)}`;
-  } else if (cleaned.startsWith("+")) {
-    cleaned = cleaned.slice(1);
+  // 1. Remove all spaces, dashes, parentheses, dots, and non-digit characters
+  let digits = phone.replace(/[^\d+]/g, "");
+
+  // 2. Strip leading +233 or 233 country code
+  if (digits.startsWith("+233")) {
+    digits = digits.slice(4);
+  } else if (digits.startsWith("233") && digits.length >= 11) {
+    digits = digits.slice(3);
+  } else if (digits.startsWith("+")) {
+    digits = digits.slice(1);
   }
 
-  return cleaned;
+  // 3. Strip any remaining leading zero if followed by 9 digits
+  if (digits.startsWith("0") && digits.length === 10) {
+    return digits;
+  }
+
+  // 4. If 9 digits (e.g. 241234567), prepend 0 to make standard 10 digits
+  if (digits.length === 9) {
+    return `0${digits}`;
+  }
+
+  // If already 10 digits starting with 0
+  if (digits.length === 10 && digits.startsWith("0")) {
+    return digits;
+  }
+
+  return digits || undefined;
 }
 
 /**

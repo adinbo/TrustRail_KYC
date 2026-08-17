@@ -46,7 +46,12 @@ describe("Input Validation & Normalization", () => {
   describe("Phone number normalization", () => {
     it("cleans spaces and hyphens and normalizes to standard format", () => {
       expect(normalizePhoneNumber("+233 24 123 4567")).toBe("0241234567");
+      expect(normalizePhoneNumber("+233241234567")).toBe("0241234567");
+      expect(normalizePhoneNumber("+2330241234567")).toBe("0241234567");
+      expect(normalizePhoneNumber("233241234567")).toBe("0241234567");
+      expect(normalizePhoneNumber("241234567")).toBe("0241234567");
       expect(normalizePhoneNumber("024-123-4567")).toBe("0241234567");
+      expect(normalizePhoneNumber("024 123 4567")).toBe("0241234567");
     });
   });
 });

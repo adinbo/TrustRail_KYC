@@ -223,7 +223,7 @@ const HTML_TESTER = `<!DOCTYPE html>
           </div>
           <div class="form-group">
             <label for="phoneNumber">Phone Number (Optional)</label>
-            <input type="tel" id="phoneNumber" value="+233241234567">
+            <input type="tel" id="phoneNumber" value="+233 24 123 4567" placeholder="+233 24 123 4567">
           </div>
           <div class="form-group">
             <label for="digitalAddress">GhanaPost GPS (Proof of Address)</label>
@@ -311,7 +311,7 @@ const HTML_TESTER = `<!DOCTYPE html>
       document.getElementById('idNumber').value = "GHA-712345678-1";
       document.getElementById('dateOfBirth').value = "1992-04-12";
       document.getElementById('email').value = "amina.clearwater@example.com";
-      document.getElementById('phoneNumber').value = "+233241234567";
+      document.getElementById('phoneNumber').value = "+233 24 123 4567";
       document.getElementById('digitalAddress').value = "GA-183-9214";
     });
 
@@ -320,6 +320,7 @@ const HTML_TESTER = `<!DOCTYPE html>
       document.getElementById('idNumber').value = "GHA-000000000-0";
       document.getElementById('dateOfBirth').value = "1990-01-01";
       document.getElementById('email').value = "rashid.dangerfield@example.com";
+      document.getElementById('phoneNumber').value = "+233 24 123 4567";
       document.getElementById('digitalAddress').value = "GA-183-9214";
     });
 
