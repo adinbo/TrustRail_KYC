@@ -68,6 +68,6 @@ describe("CediRampKycAdapter", () => {
 
     expect(res.passed).toBe(false);
     expect(res.details.validationPassed).toBe(true);
-    expect(res.reason).toContain("Verification failed on checks");
+    expect(res.reason).toContain("[Government Registry (NIA)]");
   });
 });

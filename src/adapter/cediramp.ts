@@ -28,6 +28,66 @@ export interface CediRampKycDecision {
 }
 
 /**
+ * Translates individual check failures into clear, actionable human-readable explanations.
+ */
+export function formatFailureDiagnostics(result: IdentityVerificationResult): string[] {
+  const diagnostics: string[] = [];
+
+  for (const check of result.checks) {
+    if (check.pass) continue;
+
+    switch (check.source) {
+      case "expiry":
+        diagnostics.push(`[Document Expiry]: ${(check.detail as { error?: string })?.error || "The ID document is expired."}`);
+        break;
+
+      case "nia":
+        diagnostics.push(`[Government Registry (NIA)]: ${(check.detail as { note?: string; error?: string })?.note || "Record not found in the National Identity Register."}`);
+        break;
+
+      case "smile": {
+        const detail = check.detail as { resultCode?: string; status?: string; error?: string };
+        const reason = detail.error || `Result code: ${detail.resultCode || detail.status || "Check failed"}`;
+        diagnostics.push(`[Smile ID Biometrics]: ${reason}`);
+        break;
+      }
+
+      case "qoreid": {
+        const detail = check.detail as { overallStatus?: string; matchStatus?: string; error?: string; httpStatus?: number };
+        const raw = check.raw as { summary?: { ghana_id_check?: { fieldMatches?: Record<string, boolean> } } };
+        const fields = raw?.summary?.ghana_id_check?.fieldMatches;
+        let msg = detail.error || `Status: ${detail.overallStatus || "mismatch"} (${detail.matchStatus || ""})`;
+        if (fields) {
+          const failedFields = Object.entries(fields).filter(([_, matched]) => !matched).map(([f]) => f);
+          if (failedFields.length > 0) {
+            msg += ` — Mismatched fields: ${failedFields.join(", ")}`;
+          }
+        }
+        diagnostics.push(`[QoreID Verification]: ${msg}`);
+        break;
+      }
+
+      case "sanctions": {
+        const detail = check.detail as { matchedName?: string[]; note?: string };
+        diagnostics.push(`[Sanctions & AML]: ${detail.note || `Matched watchlist entity: ${detail.matchedName?.join(", ")}`}`);
+        break;
+      }
+
+      case "address": {
+        const detail = check.detail as { error?: string };
+        diagnostics.push(`[Proof of Address]: ${detail.error || "Digital address verification failed."}`);
+        break;
+      }
+
+      default:
+        diagnostics.push(`[${check.source.toUpperCase()}]: Check failed.`);
+    }
+  }
+
+  return diagnostics;
+}
+
+/**
  * Adapter providing seamless integration between TrustRail-KYC and CediRamp's
  * user onboarding/verification pipeline (e.g. POST /v1/users).
  */
@@ -103,9 +163,9 @@ export class CediRampKycAdapter {
     // 3. Run Orchestrator
     const result = await this.orchestrator.verify(identityInput);
 
-    const failedChecks = result.checks.filter((c) => !c.pass);
-    const reason = failedChecks.length > 0
-      ? `Verification failed on checks: ${failedChecks.map((c) => c.source).join(", ")}`
+    const diagnostics = formatFailureDiagnostics(result);
+    const reason = diagnostics.length > 0
+      ? diagnostics.join(" | ")
       : undefined;
 
     return {
