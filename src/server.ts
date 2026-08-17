@@ -338,31 +338,30 @@ const HTML_TESTER = `<!DOCTYPE html>
     const emailInput = document.getElementById('email');
     const emailHelp = document.getElementById('emailHelp');
 
-    // 1. Phone number formatting (smooth, backspace-friendly)
+    // 1. Phone number formatting (pure 9-digit subscriber number after +233)
     phoneInput.addEventListener('input', (e) => {
-      let val = phoneInput.value.replace(/\D/g, '');
-      if (val.startsWith('233')) val = val.slice(3);
-      if (val.startsWith('0')) val = val.slice(1);
-      val = val.slice(0, 9);
+      let raw = phoneInput.value.replace(/\D/g, '');
+      // If user pasted/typed country code or leading 0, strip them cleanly
+      if (raw.startsWith('233') && raw.length > 3) raw = raw.slice(3);
+      if (raw.startsWith('0')) raw = raw.slice(1);
+      const digits = raw.slice(0, 9);
 
       if (e.inputType === 'deleteContentBackward') {
-        phoneInput.value = val;
+        phoneInput.value = digits;
+      } else if (digits.length > 5) {
+        phoneInput.value = digits.slice(0, 2) + ' ' + digits.slice(2, 5) + ' ' + digits.slice(5);
+      } else if (digits.length > 2) {
+        phoneInput.value = digits.slice(0, 2) + ' ' + digits.slice(2);
       } else {
-        if (val.length > 5) {
-          phoneInput.value = val.slice(0, 2) + ' ' + val.slice(2, 5) + ' ' + val.slice(5);
-        } else if (val.length > 2) {
-          phoneInput.value = val.slice(0, 2) + ' ' + val.slice(2);
-        } else {
-          phoneInput.value = val;
-        }
+        phoneInput.value = digits;
       }
 
-      if (val.length === 9) {
-        phoneHelp.innerHTML = '<span style="color:#10b981;">✓ Valid 9-digit Ghana number (+233 ' + phoneInput.value + ')</span>';
-      } else if (val.length > 0) {
-        phoneHelp.innerHTML = '<span style="color:#f59e0b;">Entering digits: ' + val.length + '/9</span>';
+      if (digits.length === 9) {
+        phoneHelp.innerHTML = '<span style="color:#10b981;">✓ Full 9-digit number: +233 ' + phoneInput.value + '</span>';
+      } else if (digits.length > 0) {
+        phoneHelp.innerHTML = '<span style="color:#f59e0b;">Subscriber digits: ' + digits.length + '/9 (excluding +233)</span>';
       } else {
-        phoneHelp.innerHTML = 'Format: <strong>+233 XX XXX XXXX</strong> (e.g., 24 123 4567)';
+        phoneHelp.innerHTML = 'Enter 9 digits: <strong>XX XXX XXXX</strong> (e.g., 24 123 4567)';
       }
     });
 
