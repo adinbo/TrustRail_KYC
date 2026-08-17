@@ -268,9 +268,9 @@ const HTML_TESTER = `<!DOCTYPE html>
             <label for="phoneNumber">Phone Number (Ghana Mobile)</label>
             <div class="phone-input-wrapper">
               <span class="phone-prefix-badge">🇬🇭 +233</span>
-              <input type="tel" id="phoneNumber" value="24 123 4567" placeholder="24 123 4567" maxlength="11" autocomplete="tel-national">
+              <input type="tel" id="phoneNumber" value="241234567" placeholder="e.g. 241234567" maxlength="10" autocomplete="tel-national">
             </div>
-            <small id="phoneHelp" class="helper-text">Format: <strong>+233 XX XXX XXXX</strong> (e.g., 24 123 4567)</small>
+            <small id="phoneHelp" class="helper-text">Enter 9 or 10 digits (e.g., <strong>241234567</strong> or <strong>0241234567</strong>)</small>
           </div>
           <div class="form-group">
             <label for="digitalAddress">GhanaPost GPS (Proof of Address)</label>
@@ -338,30 +338,25 @@ const HTML_TESTER = `<!DOCTYPE html>
     const emailInput = document.getElementById('email');
     const emailHelp = document.getElementById('emailHelp');
 
-    // 1. Phone number formatting (pure 9-digit subscriber number after +233)
-    phoneInput.addEventListener('input', (e) => {
-      let raw = phoneInput.value.replace(/\D/g, '');
-      // If user pasted/typed country code or leading 0, strip them cleanly
-      if (raw.startsWith('233') && raw.length > 3) raw = raw.slice(3);
-      if (raw.startsWith('0')) raw = raw.slice(1);
-      const digits = raw.slice(0, 9);
-
-      if (e.inputType === 'deleteContentBackward') {
-        phoneInput.value = digits;
-      } else if (digits.length > 5) {
-        phoneInput.value = digits.slice(0, 2) + ' ' + digits.slice(2, 5) + ' ' + digits.slice(5);
-      } else if (digits.length > 2) {
-        phoneInput.value = digits.slice(0, 2) + ' ' + digits.slice(2);
-      } else {
-        phoneInput.value = digits;
+    // 1. Phone number formatting (frictionless numeric entry)
+    phoneInput.addEventListener('input', () => {
+      let digits = phoneInput.value.replace(/\D/g, '');
+      if (digits.startsWith('233') && digits.length > 3) {
+        digits = digits.slice(3);
       }
+      let subscriber = digits.startsWith('0') ? digits.slice(1) : digits;
+      subscriber = subscriber.slice(0, 9);
 
-      if (digits.length === 9) {
-        phoneHelp.innerHTML = '<span style="color:#10b981;">✓ Full 9-digit number: +233 ' + phoneInput.value + '</span>';
-      } else if (digits.length > 0) {
-        phoneHelp.innerHTML = '<span style="color:#f59e0b;">Subscriber digits: ' + digits.length + '/9 (excluding +233)</span>';
+      // Keep what the user typed (digits only)
+      phoneInput.value = digits.slice(0, 10);
+
+      if (subscriber.length === 9) {
+        const formatted = subscriber.slice(0, 2) + ' ' + subscriber.slice(2, 5) + ' ' + subscriber.slice(5);
+        phoneHelp.innerHTML = '<span style="color:#10b981;">✓ Valid Ghana mobile: +233 ' + formatted + '</span>';
+      } else if (subscriber.length > 0) {
+        phoneHelp.innerHTML = '<span style="color:#f59e0b;">Subscriber digits: ' + subscriber.length + '/9 (e.g. 241234567)</span>';
       } else {
-        phoneHelp.innerHTML = 'Enter 9 digits: <strong>XX XXX XXXX</strong> (e.g., 24 123 4567)';
+        phoneHelp.innerHTML = 'Enter 9 or 10 digits (e.g. <strong>241234567</strong> or <strong>0241234567</strong>)';
       }
     });
 
@@ -447,7 +442,7 @@ const HTML_TESTER = `<!DOCTYPE html>
       document.getElementById('idNumber').value = "GHA-712345678-1";
       document.getElementById('dateOfBirth').value = "1992-04-12";
       document.getElementById('email').value = "amina.clearwater@example.com";
-      document.getElementById('phoneNumber').value = "24 123 4567";
+      document.getElementById('phoneNumber').value = "241234567";
       document.getElementById('digitalAddress').value = "GA-183-9214";
       idInput.dispatchEvent(new Event('input'));
       phoneInput.dispatchEvent(new Event('input'));
@@ -460,7 +455,7 @@ const HTML_TESTER = `<!DOCTYPE html>
       document.getElementById('idNumber').value = "GHA-000000000-0";
       document.getElementById('dateOfBirth').value = "1990-01-01";
       document.getElementById('email').value = "rashid.dangerfield@example.com";
-      document.getElementById('phoneNumber').value = "24 123 4567";
+      document.getElementById('phoneNumber').value = "241234567";
       document.getElementById('digitalAddress').value = "GA-183-9214";
       idInput.dispatchEvent(new Event('input'));
       phoneInput.dispatchEvent(new Event('input'));
@@ -475,7 +470,9 @@ const HTML_TESTER = `<!DOCTYPE html>
       resultsSection.style.display = "none";
       biometricsCard.style.display = "none";
 
-      const rawPhone = document.getElementById('phoneNumber').value.trim();
+      let rawPhone = document.getElementById('phoneNumber').value.replace(/\D/g, '');
+      if (rawPhone.startsWith('233') && rawPhone.length > 3) rawPhone = rawPhone.slice(3);
+      if (rawPhone.startsWith('0')) rawPhone = rawPhone.slice(1);
       const formattedPhone = rawPhone ? ("+233 " + rawPhone) : undefined;
 
       const payload = {
