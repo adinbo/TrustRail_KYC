@@ -256,11 +256,13 @@ const HTML_TESTER = `<!DOCTYPE html>
           </div>
           <div class="form-group">
             <label for="idNumber">Ghana Card ID</label>
-            <input type="text" id="idNumber" value="GHA-712345678-1" required placeholder="GHA-XXXXXXXXX-X">
+            <input type="text" id="idNumber" value="GHA-712345678-1" required placeholder="GHA-XXXXXXXXX-X" autocomplete="off">
+            <small id="idNumberHelp" class="helper-text">Format: <strong>GHA-XXXXXXXXX-X</strong></small>
           </div>
           <div class="form-group">
             <label for="dateOfBirth">Date of Birth</label>
             <input type="date" id="dateOfBirth" value="1992-04-12" required>
+            <small class="helper-text">Must be at least 18 years old</small>
           </div>
           <div class="form-group">
             <label for="phoneNumber">Phone Number (Ghana Mobile)</label>
@@ -268,15 +270,17 @@ const HTML_TESTER = `<!DOCTYPE html>
               <span class="phone-prefix-badge">🇬🇭 +233</span>
               <input type="tel" id="phoneNumber" value="24 123 4567" placeholder="24 123 4567" maxlength="11" autocomplete="tel-national">
             </div>
-            <small class="helper-text">Format: <strong>+233 XX XXX XXXX</strong> (e.g. 24 123 4567)</small>
+            <small id="phoneHelp" class="helper-text">Format: <strong>+233 XX XXX XXXX</strong> (e.g., 24 123 4567)</small>
           </div>
           <div class="form-group">
             <label for="digitalAddress">GhanaPost GPS (Proof of Address)</label>
-            <input type="text" id="digitalAddress" value="GA-183-9214" placeholder="e.g. AK-039-5028">
+            <input type="text" id="digitalAddress" value="GA-183-9214" placeholder="e.g. AK-039-5028" autocomplete="off">
+            <small id="addressHelp" class="helper-text">Format: <strong>XX-NNN-NNNN</strong> (e.g., GA-183-9214)</small>
           </div>
           <div class="form-group full">
             <label for="email">Email Address (Optional)</label>
-            <input type="email" id="email" value="amina.clearwater@example.com">
+            <input type="email" id="email" value="amina.clearwater@example.com" placeholder="name@domain.com">
+            <small id="emailHelp" class="helper-text">Valid email address for notification & verification</small>
           </div>
           <div class="form-group">
             <label for="selfieFile">User Selfie (Biometric Liveness & Face Match)</label>
@@ -324,20 +328,93 @@ const HTML_TESTER = `<!DOCTYPE html>
     const jsonOutput = document.getElementById('jsonOutput');
     const biometricsCard = document.getElementById('biometricsCard');
     const biometricsContent = document.getElementById('biometricsContent');
+
+    const idInput = document.getElementById('idNumber');
+    const idHelp = document.getElementById('idNumberHelp');
     const phoneInput = document.getElementById('phoneNumber');
+    const phoneHelp = document.getElementById('phoneHelp');
+    const addressInput = document.getElementById('digitalAddress');
+    const addressHelp = document.getElementById('addressHelp');
+    const emailInput = document.getElementById('email');
+    const emailHelp = document.getElementById('emailHelp');
 
-    function formatPhoneDigits(val) {
-      let digits = (val || '').replace(/\D/g, '');
-      if (digits.startsWith('233')) digits = digits.slice(3);
-      if (digits.startsWith('0')) digits = digits.slice(1);
-      digits = digits.slice(0, 9);
-      if (digits.length <= 2) return digits;
-      if (digits.length <= 5) return digits.slice(0, 2) + ' ' + digits.slice(2);
-      return digits.slice(0, 2) + ' ' + digits.slice(2, 5) + ' ' + digits.slice(5);
-    }
-
+    // 1. Phone number formatting (smooth, backspace-friendly)
     phoneInput.addEventListener('input', (e) => {
-      e.target.value = formatPhoneDigits(e.target.value);
+      let val = phoneInput.value.replace(/\D/g, '');
+      if (val.startsWith('233')) val = val.slice(3);
+      if (val.startsWith('0')) val = val.slice(1);
+      val = val.slice(0, 9);
+
+      if (e.inputType === 'deleteContentBackward') {
+        phoneInput.value = val;
+      } else {
+        if (val.length > 5) {
+          phoneInput.value = val.slice(0, 2) + ' ' + val.slice(2, 5) + ' ' + val.slice(5);
+        } else if (val.length > 2) {
+          phoneInput.value = val.slice(0, 2) + ' ' + val.slice(2);
+        } else {
+          phoneInput.value = val;
+        }
+      }
+
+      if (val.length === 9) {
+        phoneHelp.innerHTML = '<span style="color:#10b981;">✓ Valid 9-digit Ghana number (+233 ' + phoneInput.value + ')</span>';
+      } else if (val.length > 0) {
+        phoneHelp.innerHTML = '<span style="color:#f59e0b;">Entering digits: ' + val.length + '/9</span>';
+      } else {
+        phoneHelp.innerHTML = 'Format: <strong>+233 XX XXX XXXX</strong> (e.g., 24 123 4567)';
+      }
+    });
+
+    // 2. Ghana Card formatting & validation
+    idInput.addEventListener('input', () => {
+      let raw = idInput.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      idInput.value = raw;
+      const valid = /^GHA-\d{9}-\d$/.test(raw);
+      if (valid) {
+        idHelp.innerHTML = '<span style="color:#10b981;">✓ Valid Ghana Card format</span>';
+      } else if (raw.length > 0) {
+        idHelp.innerHTML = '<span style="color:#f59e0b;">Expected format: GHA-XXXXXXXXX-X (e.g., GHA-712345678-1)</span>';
+      } else {
+        idHelp.innerHTML = 'Format: <strong>GHA-XXXXXXXXX-X</strong>';
+      }
+    });
+
+    // 3. GhanaPost GPS Address formatting & validation
+    const REGION_LOOKUP = {
+      GA: 'Greater Accra (Accra)', GS: 'Greater Accra (South)', GW: 'Greater Accra (West)',
+      AK: 'Ashanti (Kumasi)', AS: 'Ashanti (South)', CR: 'Central', ER: 'Eastern',
+      WR: 'Western', VR: 'Volta', NR: 'Northern', UW: 'Upper West', UE: 'Upper East', BA: 'Bono'
+    };
+
+    addressInput.addEventListener('input', () => {
+      let raw = addressInput.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+      addressInput.value = raw;
+      const valid = /^[A-Z]{1,2}-\d{3,4}-\d{4}$/.test(raw);
+      if (valid) {
+        const prefix = raw.split('-')[0];
+        const reg = REGION_LOOKUP[prefix] || 'Ghana Regional District';
+        addressHelp.innerHTML = '<span style="color:#10b981;">✓ Valid Address — ' + reg + '</span>';
+      } else if (raw.length > 0) {
+        addressHelp.innerHTML = '<span style="color:#f59e0b;">Format: XX-NNN-NNNN (e.g., GA-183-9214, AK-039-5028)</span>';
+      } else {
+        addressHelp.innerHTML = 'Format: <strong>XX-NNN-NNNN</strong> (e.g., GA-183-9214)';
+      }
+    });
+
+    // 4. Email validation
+    emailInput.addEventListener('input', () => {
+      const val = emailInput.value.trim();
+      if (!val) {
+        emailHelp.innerHTML = 'Valid email address for notification & verification';
+        return;
+      }
+      const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val);
+      if (valid) {
+        emailHelp.innerHTML = '<span style="color:#10b981;">✓ Valid email format</span>';
+      } else {
+        emailHelp.innerHTML = '<span style="color:#f87171;">Invalid email format (must include @ and valid domain)</span>';
+      }
     });
 
     const samplePhotoBase64 = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
@@ -373,6 +450,10 @@ const HTML_TESTER = `<!DOCTYPE html>
       document.getElementById('email').value = "amina.clearwater@example.com";
       document.getElementById('phoneNumber').value = "24 123 4567";
       document.getElementById('digitalAddress').value = "GA-183-9214";
+      idInput.dispatchEvent(new Event('input'));
+      phoneInput.dispatchEvent(new Event('input'));
+      addressInput.dispatchEvent(new Event('input'));
+      emailInput.dispatchEvent(new Event('input'));
     });
 
     document.getElementById('fillFailBtn').addEventListener('click', () => {
@@ -382,6 +463,10 @@ const HTML_TESTER = `<!DOCTYPE html>
       document.getElementById('email').value = "rashid.dangerfield@example.com";
       document.getElementById('phoneNumber').value = "24 123 4567";
       document.getElementById('digitalAddress').value = "GA-183-9214";
+      idInput.dispatchEvent(new Event('input'));
+      phoneInput.dispatchEvent(new Event('input'));
+      addressInput.dispatchEvent(new Event('input'));
+      emailInput.dispatchEvent(new Event('input'));
     });
 
     form.addEventListener('submit', async (e) => {
