@@ -1,11 +1,9 @@
-import { IDApi, WebApi } from "smile-identity-core";
+import crypto from "node:crypto";
 import type { IdentityCheckResult, IdentityInput } from "../types.js";
 
 /**
- * Real integration against Smile ID's sandbox API — verified directly
- * against their official SDK source (smileidentity/smile-identity-core-js
- * on GitHub) for the signature scheme, base URLs, and request/response
- * shapes.
+ * Native REST integration against Smile ID's API (no buggy third-party SDK dependencies).
+ * Uses standard HMAC-SHA256 signature scheme against Smile ID v1 endpoints.
  *
  * Supports:
  * - job_type 5 (Enhanced KYC / Registry text matching)
@@ -15,9 +13,10 @@ import type { IdentityCheckResult, IdentityInput } from "../types.js";
 export interface SmileIdentityConfig {
   partnerId: string;
   apiKey: string;
-  /** "0" = sandbox, "1" = production. Always "0" until this module and
-   *  CediRamp are both production-ready. */
-  server: "0" | "1";
+  /** "0" = sandbox, "1" = production. Defaults to "0" (sandbox). */
+  server?: "0" | "1";
+  /** Base URL override if needed. */
+  baseUrl?: string;
   /** ISO 3166 alpha-2 country code. Defaults to "GH". */
   country?: string;
   /** Smile ID's id_type string for a Ghana Card. */
@@ -29,16 +28,32 @@ export interface SmileClient {
 }
 
 export class SmileIdentityClient implements SmileClient {
-  private readonly idApi: IDApi;
-  private readonly webApi: WebApi;
+  private readonly partnerId: string;
+  private readonly apiKey: string;
+  private readonly baseUrl: string;
   private readonly country: string;
   private readonly idType: string;
 
   constructor(config: SmileIdentityConfig) {
-    this.idApi = new IDApi(config.partnerId, config.apiKey, config.server);
-    this.webApi = new WebApi(config.partnerId, null, config.apiKey, config.server);
+    this.partnerId = config.partnerId;
+    this.apiKey = config.apiKey;
     this.country = config.country ?? "GH";
     this.idType = config.idType ?? "GHANA_CARD";
+    if (config.baseUrl) {
+      this.baseUrl = config.baseUrl;
+    } else {
+      this.baseUrl = config.server === "1"
+        ? "https://api.smileidentity.com/v1"
+        : "https://testapi.smileidentity.com/v1";
+    }
+  }
+
+  private generateSignature(timestamp: string): string {
+    const hmac = crypto.createHmac("sha256", this.apiKey);
+    hmac.update(timestamp, "utf8");
+    hmac.update(this.partnerId, "utf8");
+    hmac.update("sid_request", "utf8");
+    return hmac.digest("base64");
   }
 
   async verifyIdentity(input: IdentityInput): Promise<IdentityCheckResult> {
@@ -59,11 +74,15 @@ export class SmileIdentityClient implements SmileClient {
       images.push({ image_type_id: 3, image: input.idCardBackImage }); // 3 = ID card back
     }
 
+    const timestamp = new Date().toISOString();
+    const signature = this.generateSignature(timestamp);
+
     const partner_params = {
       job_id: `trustrail-${Date.now()}`,
-      user_id: input.externalRef,
+      user_id: input.externalRef ?? `user-${Date.now()}`,
       job_type,
     };
+
     const id_info = {
       first_name: input.firstName,
       last_name: input.lastName,
@@ -76,13 +95,27 @@ export class SmileIdentityClient implements SmileClient {
       expiry_date: input.expiryDate,
     };
 
+    const endpoint = images.length > 0 ? `${this.baseUrl}/upload` : `${this.baseUrl}/id_verification`;
+
+    const payload = {
+      source_sdk: "rest_api",
+      source_sdk_version: "1.0.0",
+      partner_id: this.partnerId,
+      timestamp,
+      signature,
+      partner_params,
+      id_info,
+      images: images.length > 0 ? images : undefined,
+    };
+
     try {
-      const result = (images.length > 0
-        ? await this.webApi.submit_job(partner_params, images, id_info)
-        : await this.idApi.submit_job<Record<string, unknown>>(partner_params, id_info)) as Record<
-        string,
-        unknown
-      >;
+      const resp = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await resp.json() as Record<string, unknown>;
 
       const resultCode = (result as { ResultCode?: string }).ResultCode;
       const status = (result as { Status?: string; status?: string }).Status
@@ -118,3 +151,4 @@ export class SmileIdentityClient implements SmileClient {
     }
   }
 }
+

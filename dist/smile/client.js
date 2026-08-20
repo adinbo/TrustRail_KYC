@@ -1,14 +1,30 @@
-import { IDApi, WebApi } from "smile-identity-core";
+import crypto from "node:crypto";
 export class SmileIdentityClient {
-    idApi;
-    webApi;
+    partnerId;
+    apiKey;
+    baseUrl;
     country;
     idType;
     constructor(config) {
-        this.idApi = new IDApi(config.partnerId, config.apiKey, config.server);
-        this.webApi = new WebApi(config.partnerId, null, config.apiKey, config.server);
+        this.partnerId = config.partnerId;
+        this.apiKey = config.apiKey;
         this.country = config.country ?? "GH";
         this.idType = config.idType ?? "GHANA_CARD";
+        if (config.baseUrl) {
+            this.baseUrl = config.baseUrl;
+        }
+        else {
+            this.baseUrl = config.server === "1"
+                ? "https://api.smileidentity.com/v1"
+                : "https://testapi.smileidentity.com/v1";
+        }
+    }
+    generateSignature(timestamp) {
+        const hmac = crypto.createHmac("sha256", this.apiKey);
+        hmac.update(timestamp, "utf8");
+        hmac.update(this.partnerId, "utf8");
+        hmac.update("sid_request", "utf8");
+        return hmac.digest("base64");
     }
     async verifyIdentity(input) {
         let job_type = 5;
@@ -25,9 +41,11 @@ export class SmileIdentityClient {
         if (input.idCardBackImage) {
             images.push({ image_type_id: 3, image: input.idCardBackImage }); // 3 = ID card back
         }
+        const timestamp = new Date().toISOString();
+        const signature = this.generateSignature(timestamp);
         const partner_params = {
             job_id: `trustrail-${Date.now()}`,
-            user_id: input.externalRef,
+            user_id: input.externalRef ?? `user-${Date.now()}`,
             job_type,
         };
         const id_info = {
@@ -41,10 +59,24 @@ export class SmileIdentityClient {
             email: input.email,
             expiry_date: input.expiryDate,
         };
+        const endpoint = images.length > 0 ? `${this.baseUrl}/upload` : `${this.baseUrl}/id_verification`;
+        const payload = {
+            source_sdk: "rest_api",
+            source_sdk_version: "1.0.0",
+            partner_id: this.partnerId,
+            timestamp,
+            signature,
+            partner_params,
+            id_info,
+            images: images.length > 0 ? images : undefined,
+        };
         try {
-            const result = (images.length > 0
-                ? await this.webApi.submit_job(partner_params, images, id_info)
-                : await this.idApi.submit_job(partner_params, id_info));
+            const resp = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+            const result = await resp.json();
             const resultCode = result.ResultCode;
             const status = result.Status
                 ?? result.status;

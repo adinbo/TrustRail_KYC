@@ -1,9 +1,7 @@
 import type { IdentityCheckResult, IdentityInput } from "../types.js";
 /**
- * Real integration against Smile ID's sandbox API — verified directly
- * against their official SDK source (smileidentity/smile-identity-core-js
- * on GitHub) for the signature scheme, base URLs, and request/response
- * shapes.
+ * Native REST integration against Smile ID's API (no buggy third-party SDK dependencies).
+ * Uses standard HMAC-SHA256 signature scheme against Smile ID v1 endpoints.
  *
  * Supports:
  * - job_type 5 (Enhanced KYC / Registry text matching)
@@ -13,9 +11,10 @@ import type { IdentityCheckResult, IdentityInput } from "../types.js";
 export interface SmileIdentityConfig {
     partnerId: string;
     apiKey: string;
-    /** "0" = sandbox, "1" = production. Always "0" until this module and
-     *  CediRamp are both production-ready. */
-    server: "0" | "1";
+    /** "0" = sandbox, "1" = production. Defaults to "0" (sandbox). */
+    server?: "0" | "1";
+    /** Base URL override if needed. */
+    baseUrl?: string;
     /** ISO 3166 alpha-2 country code. Defaults to "GH". */
     country?: string;
     /** Smile ID's id_type string for a Ghana Card. */
@@ -25,10 +24,12 @@ export interface SmileClient {
     verifyIdentity(input: IdentityInput): Promise<IdentityCheckResult>;
 }
 export declare class SmileIdentityClient implements SmileClient {
-    private readonly idApi;
-    private readonly webApi;
+    private readonly partnerId;
+    private readonly apiKey;
+    private readonly baseUrl;
     private readonly country;
     private readonly idType;
     constructor(config: SmileIdentityConfig);
+    private generateSignature;
     verifyIdentity(input: IdentityInput): Promise<IdentityCheckResult>;
 }
