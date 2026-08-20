@@ -1,0 +1,1 @@
+{"version":3,"file":"client.js","sourceRoot":"","sources":["../../src/sanctions/client.ts"],"names":[],"mappings":"AAcA;;+BAE+B;AAC/B,MAAM,OAAO,mBAAmB;IAC9B,KAAK,CAAC,MAAM,CAAC,MAAqB;QAChC,OAAO,EAAE,MAAM,EAAE,WAAW,EAAE,IAAI,EAAE,IAAI,EAAE,MAAM,EAAE,EAAE,IAAI,EAAE,sCAAsC,EAAE,EAAE,CAAC;IACvG,CAAC;CACF"}
