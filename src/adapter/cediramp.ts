@@ -22,6 +22,10 @@ export interface CediRampUserKycParams {
   selfieImage?: string;
   idCardFrontImage?: string;
   idCardBackImage?: string;
+  /** Explicit Data Protection Act 843 consent */
+  consentGiven?: boolean;
+  consentTimestamp?: string;
+  ipAddress?: string;
   /** Desired KYC level (1 = Registry only, 2 = Biometrics + Address, 3 = Institutional OCR). Defaults to 1. */
   targetTier?: 1 | 2 | 3;
 }
@@ -81,6 +85,13 @@ export function formatFailureDiagnostics(result: IdentityVerificationResult): st
           }
         }
         diagnostics.push(`[QoreID Verification]: ${msg}`);
+        break;
+      }
+
+      case "inhouse": {
+        const detail = check.detail as { discrepancies?: string[]; riskScore?: number; note?: string };
+        const issues = detail.discrepancies?.join(", ") || detail.note || "In-house identity check failed.";
+        diagnostics.push(`[In-House KYC Engine]: ${issues} (Risk Score: ${detail.riskScore ?? "N/A"})`);
         break;
       }
 
@@ -202,6 +213,10 @@ export class CediRampKycAdapter {
       digitalAddress: params.digitalAddress?.trim(),
       selfieImage: params.selfieImage,
       idCardFrontImage: params.idCardFrontImage,
+      idCardBackImage: params.idCardBackImage,
+      consentGiven: params.consentGiven,
+      consentTimestamp: params.consentTimestamp,
+      ipAddress: params.ipAddress,
     };
 
     // 3. Run Orchestrator

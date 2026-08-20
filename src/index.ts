@@ -5,6 +5,7 @@ import { MockIdVerificationClient } from "./mock/idVerification.js";
 import { MockSanctionsClient } from "./sanctions/client.js";
 import { OpenSanctionsClient } from "./sanctions/opensanctions.js";
 import { MockGhanaPostClient } from "./address/ghanapost.js";
+import { InHouseIdentityClient } from "./inhouse/client.js";
 import { IdentityOrchestrator } from "./orchestrator.js";
 
 export type {
@@ -19,6 +20,14 @@ export { SmileIdentityClient } from "./smile/client.js";
 export type { SmileIdentityConfig, SmileClient } from "./smile/client.js";
 export { QoreIDClient } from "./qoreid/client.js";
 export type { QoreIDConfig } from "./qoreid/client.js";
+export { InHouseIdentityClient } from "./inhouse/client.js";
+export * from "./inhouse/types.js";
+export * from "./inhouse/ocr.js";
+export * from "./inhouse/biometrics.js";
+export * from "./inhouse/security.js";
+export * from "./inhouse/quality.js";
+export * from "./inhouse/certificate.js";
+export * from "./inhouse/registry.js";
 export { MockIdVerificationClient } from "./mock/idVerification.js";
 export { MockSanctionsClient } from "./sanctions/client.js";
 export type { SanctionsScreeningClient } from "./sanctions/client.js";
@@ -34,36 +43,32 @@ export * from "./workers/rescreening.js";
 
 /** Builds an orchestrator from environment variables — see .env.example.
  *  KYC_VENDOR picks which identity vendor fills the IdVerificationClient
- *  slot ("smile", "qoreid", or "mock"; default "smile"). Real vendors are
- *  wired up since Smile ID's signup form rejects gmail.com and QoreID was
- *  added as an alternative rather than a replacement; throws a clear error
- *  if the chosen real vendor's credentials aren't set. "mock" (added
- *  2026-08-16) exists because, unlike NIA, this ISN'T a permanent gap
- *  waiting on vendor sign-up — QoreID's Ghana Card product couldn't
- *  produce a genuine verified:true with any data tried, and their NIN
- *  product 403'd even after subscribing (see PLAN.md's "QoreID
- *  integration" section) — so a deliberate, honestly-labeled mock exists
- *  to unblock testing everything downstream of identity verification
- *  without waiting on that vendor issue. Swap back to a real vendor before
- *  anything resembling production use. NIA stays mocked regardless — see
- *  PLAN.md.
- *  SANCTIONS_MODE picks the sanctions/PEP check: "mock" (default — always
- *  passes, exercises the plumbing only) or "opensanctions" (real, against
- *  OpenSanctions' matching API). Defaults to mock rather than throwing,
- *  unlike the identity vendors, since a placeholder here doesn't block
- *  exercising the rest of the module. */
+ *  slot ("inhouse", "smile", "qoreid", or "mock"; default "inhouse").
+ */
 export function buildOrchestratorFromEnv(): IdentityOrchestrator {
-  const vendor = (process.env.KYC_VENDOR ?? "smile").toLowerCase();
+  const vendor = (process.env.KYC_VENDOR ?? "inhouse").toLowerCase();
 
   let idVerification;
-  if (vendor === "smile") {
+  if (vendor === "inhouse" || vendor === "standalone") {
+    const faceMatchThreshold = process.env.INHOUSE_MATCH_THRESHOLD ? parseFloat(process.env.INHOUSE_MATCH_THRESHOLD) : undefined;
+    const livenessThreshold = process.env.INHOUSE_LIVENESS_THRESHOLD ? parseFloat(process.env.INHOUSE_LIVENESS_THRESHOLD) : undefined;
+    const maxTamperThreshold = process.env.INHOUSE_TAMPER_THRESHOLD ? parseFloat(process.env.INHOUSE_TAMPER_THRESHOLD) : undefined;
+    const enforceTamperCheck = process.env.INHOUSE_ENFORCE_TAMPER === "true";
+
+    idVerification = new InHouseIdentityClient({
+      faceMatchThreshold,
+      livenessThreshold,
+      maxTamperThreshold,
+      enforceTamperCheck,
+    });
+  } else if (vendor === "smile") {
     const partnerId = process.env.SMILE_PARTNER_ID;
     const apiKey = process.env.SMILE_API_KEY;
     const server = (process.env.SMILE_SERVER ?? "0") as "0" | "1";
     if (!partnerId || !apiKey) {
       throw new Error(
         "Missing SMILE_PARTNER_ID / SMILE_API_KEY. Sign up for a free Smile ID sandbox account " +
-          "and set both in .env — see .env.example. (Or set KYC_VENDOR=qoreid/mock instead.)",
+          "and set both in .env — see .env.example. (Or set KYC_VENDOR=inhouse/mock instead.)",
       );
     }
     idVerification = new SmileIdentityClient({ partnerId, apiKey, server });
@@ -73,14 +78,14 @@ export function buildOrchestratorFromEnv(): IdentityOrchestrator {
     if (!clientId || !secret) {
       throw new Error(
         "Missing QOREID_CLIENT_ID / QOREID_CLIENT_SECRET. Sign up for a QoreID account and set " +
-          "both in .env — see .env.example. (Or set KYC_VENDOR=smile/mock instead.)",
+          "both in .env — see .env.example. (Or set KYC_VENDOR=inhouse/mock instead.)",
       );
     }
     idVerification = new QoreIDClient({ clientId, secret, baseUrl: process.env.QOREID_BASE_URL });
   } else if (vendor === "mock") {
     idVerification = new MockIdVerificationClient();
   } else {
-    throw new Error(`Unknown KYC_VENDOR "${vendor}" — expected "smile", "qoreid", or "mock".`);
+    throw new Error(`Unknown KYC_VENDOR "${vendor}" — expected "inhouse", "smile", "qoreid", or "mock".`);
   }
 
   const sanctionsMode = (process.env.SANCTIONS_MODE ?? "mock").toLowerCase();

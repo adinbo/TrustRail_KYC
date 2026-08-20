@@ -27,15 +27,23 @@ export interface IdentityInput {
   idCardFrontImage?: string;
   /** Base64-encoded back photo of the physical ID document. */
   idCardBackImage?: string;
+  /** Full name (optional shorthand) */
+  fullName?: string;
   /** GhanaPost GPS Digital Address (e.g. "AK-039-5028") for Proof of Address. */
   digitalAddress?: string;
+  /** Explicit Data Protection Act (Act 843) biometric consent given by citizen */
+  consentGiven?: boolean;
+  /** ISO timestamp when consent was granted */
+  consentTimestamp?: string;
+  /** Client IP address for velocity and security auditing */
+  ipAddress?: string;
 }
 
 export type RiskCategory = "SANCTION" | "PEP" | "ADVERSE_MEDIA" | "CLEAR";
 
 /** Result of a single check (NIA registry, an identity vendor, sanctions, address, expiry). */
 export interface IdentityCheckResult {
-  source: "nia" | "smile" | "qoreid" | "mock" | "sanctions" | "address" | "expiry";
+  source: "nia" | "smile" | "qoreid" | "inhouse" | "mock" | "sanctions" | "address" | "expiry";
   /** true = check passed / no issue found. */
   pass: boolean;
   /** For non-blocking compliance flags (e.g. PEP requiring Enhanced Due Diligence). */
